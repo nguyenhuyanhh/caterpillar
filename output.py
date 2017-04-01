@@ -21,19 +21,25 @@ MERGE_TRAIN_TUBE_FILE = os.path.join(CUR_DIR, 'merged_train_tube.csv')
 
 
 def extract_train():
-    """Extract train_set.csv."""
+    """
+    Extract train_set.csv.
+    Only extract tubes with bracket pricing and quantity 1.
+    """
     with open(TRAIN_FILE, 'r') as in_, open(EXTRACT_TRAIN_FILE, 'w') as out_:
         tmp = in_.readlines()
         head = tmp[0].strip().split(',')
         out_.write(head[0] + ',' + head[7] + '\n')
         for line in tmp[1:]:
             values = line.strip().split(',')
-            if int(values[3]) == 0 and int(values[4]) == 0 and values[5] == 'Yes' and int(values[6]) == 1:
+            if int(values[3]) == int(values[4]) == 0 and values[5] == 'Yes' and int(values[6]) == 1:
                 out_.write(values[0] + ',' + values[7] + '\n')
 
 
 def extract_tubes():
-    """Extract tube.csv."""
+    """
+    Extract tube.csv.
+    Only extract tubes with no special characteristics.
+    """
     with open(TUBE_FILE, 'r') as in_, open(EXTRACT_TUBE_FILE, 'w') as out_:
         tmp = in_.readlines()
         head_tmp = tmp[0].strip().split(',')
@@ -47,7 +53,9 @@ def extract_tubes():
 
 
 def merge_train_tubes():
-    """Merge two data sets together."""
+    """
+    Merge two data sets from extract_train and extract_tubes together.
+    """
     with open(EXTRACT_TRAIN_FILE, 'r') as train_, open(EXTRACT_TUBE_FILE, 'r') as tube_, open(MERGE_TRAIN_TUBE_FILE, 'w') as out_:
         tmp_train = train_.readlines()
         tmp_tube = tube_.readlines()
@@ -65,7 +73,7 @@ def merge_train_tubes():
                     break
 
 
-def get_coefficients():
+def get_cost_coefficients_for_tube():
     """
     Get the coefficients for linear regression of tube cost.
     Model: cost = f(diameter, wall, length, num_bends, bend_radius) ::= y = Ax
@@ -90,7 +98,7 @@ def get_coefficients():
              num_bends_vect, bend_radius_vect]
     a_mat_big = np.column_stack(a_mat + [[1] * len(a_mat[0])])
     x_vect = np.linalg.lstsq(a_mat_big, y_vect)[0]
-    print x_vect
+    return x_vect
 
 
 def predict():
@@ -104,5 +112,5 @@ def predict():
             out_.write('{},1\n'.format(id_))
 
 if __name__ == '__main__':
-    get_coefficients()
+    get_cost_coefficients_for_tube()
     predict()
