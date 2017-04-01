@@ -34,8 +34,13 @@ def extract_tubes():
     with open(TUBE_FILE, 'r') as in_, open(EXTRACT_TUBE_FILE, 'w') as out_:
         tmp = in_.readlines()
         head_tmp = tmp[0].strip().split(',')
-        head = [head_tmp[0]] + head_tmp[2:6]
+        head = [head_tmp[0]] + head_tmp[2:7]
         out_.write(','.join(head) + '\n')
+        for line in tmp[1:]:
+            values = line.strip().split(',')
+            if int(values[-1]) == int(values[-2]) == int(values[-3]) == 0 and values[-6] == values[-7] == values[-8] == values[-9] == 'N':
+                values_tmp = [values[0]] + values[2:7]
+                out_.write(','.join(values_tmp) + '\n')
 
 
 if __name__ == '__main__':
