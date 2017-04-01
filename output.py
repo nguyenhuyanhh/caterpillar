@@ -19,12 +19,6 @@ EXTRACT_TRAIN_FILE = os.path.join(CUR_DIR, 'extracted_train.csv')
 EXTRACT_TUBE_FILE = os.path.join(CUR_DIR, 'extracted_tube.csv')
 MERGE_TRAIN_TUBE_FILE = os.path.join(CUR_DIR, 'merged_train_tube.csv')
 
-# put random price
-# with open(OUT_FILE, 'w') as out_:
-#     out_.write('id,cost\n')
-#     for id_ in IDS:
-#         out_.write('{},1\n'.format(id_))
-
 
 def extract_train():
     """Extract train_set.csv."""
@@ -74,11 +68,41 @@ def merge_train_tubes():
 def get_coefficients():
     """
     Get the coefficients for linear regression of tube cost.
-    Model: cost = f(diameter, wall, length, num_bends, bend_radius)
+    Model: cost = f(diameter, wall, length, num_bends, bend_radius) ::= y = Ax
     """
+    y_vect = list()
+    diameter_vect = list()
+    wall_vect = list()
+    length_vect = list()
+    num_bends_vect = list()
+    bend_radius_vect = list()
     with open(MERGE_TRAIN_TUBE_FILE, 'r') as merged_:
-        pass
+        tmp = merged_.readlines()[1:]
+        for line in tmp:
+            values = line.strip().split(',')
+            y_vect.append(float(values[-1]))
+            diameter_vect.append(float(values[1]))
+            wall_vect.append(float(values[2]))
+            length_vect.append(float(values[3]))
+            num_bends_vect.append(float(values[4]))
+            bend_radius_vect.append(float(values[5]))
+    a_mat = [diameter_vect, wall_vect, length_vect,
+             num_bends_vect, bend_radius_vect]
+    a_mat_big = np.column_stack(a_mat + [[1] * len(a_mat[0])])
+    x_vect = np.linalg.lstsq(a_mat_big, y_vect)[0]
+    print x_vect
 
+
+def predict():
+    """
+    Predict the price of each tube.
+    """
+    with open(TEST_FILE, 'r') as in_, open(OUT_FILE, 'w') as out_:
+        ids = [line.strip().split(',')[0] for line in in_.readlines()[1:]]
+        out_.write('id,cost\n')
+        for id_ in ids:
+            out_.write('{},1\n'.format(id_))
 
 if __name__ == '__main__':
     get_coefficients()
+    predict()
