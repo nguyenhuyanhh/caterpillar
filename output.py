@@ -15,7 +15,8 @@ TUBE_FILE = os.path.join(DATA_DIR, 'tube.csv')
 TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
 # outputs
 OUT_FILE = os.path.join(CUR_DIR, 'out.csv')
-EXTRACT_TRAIN_FILE = os.path.join(CUR_DIR, 'extracted_train.csv')
+EXTRACT_TRAIN_BRACKET_FILE = os.path.join(CUR_DIR, 'extracted_train_bracket.csv')
+EXTRACT_TRAIN_NO_BRACKET_FILE = os.path.join(CUR_DIR, 'extracted_train_no_bracket.csv')
 EXTRACT_TUBE_FILE = os.path.join(CUR_DIR, 'extracted_tube.csv')
 MERGE_TRAIN_TUBE_FILE = os.path.join(CUR_DIR, 'merged_train_tube.csv')
 
@@ -25,14 +26,20 @@ def extract_train():
     Extract train_set.csv.
     Only extract tubes with bracket pricing and quantity 1.
     """
-    with open(TRAIN_FILE, 'r') as in_, open(EXTRACT_TRAIN_FILE, 'w') as out_:
+    with open(TRAIN_FILE, 'r') as in_, open(EXTRACT_TRAIN_BRACKET_FILE, 'w') as out_bracket, open(EXTRACT_TRAIN_NO_BRACKET_FILE,'w') as out_no_bracket:
         tmp = in_.readlines()
         head = tmp[0].strip().split(',')
         out_.write(head[0] + ',' + head[7] + '\n')
-        for line in tmp[1:]:
+        """for line in tmp[1:]:
             values = line.strip().split(',')
             if int(values[3]) == int(values[4]) == 0 and values[5] == 'Yes' and int(values[6]) == 1:
-                out_.write(values[0] + ',' + values[7] + '\n')
+                out_.write(values[0] + ',' + values[7] + '\n')"""
+		for line in tmp[1:]:
+            values = line.strip().split(',')
+            if values[5] == 'Yes':
+                out_bracket.write(values[0] + ',' + values[7] + '\n')
+			else:
+				out_no_bracket.write(values[0] + ',' + values[7] + '\n')
 
 
 def extract_tubes():
