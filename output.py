@@ -30,16 +30,12 @@ def extract_train():
         tmp = in_.readlines()
         head = tmp[0].strip().split(',')
         out_.write(head[0] + ',' + head[7] + '\n')
-        """for line in tmp[1:]:
-            values = line.strip().split(',')
-            if int(values[3]) == int(values[4]) == 0 and values[5] == 'Yes' and int(values[6]) == 1:
-                out_.write(values[0] + ',' + values[7] + '\n')"""
-		for line in tmp[1:]:
+	for line in tmp[1:]:
             values = line.strip().split(',')
             if values[5] == 'Yes':
                 out_bracket.write(values[0] + ',' + values[7] + '\n')
-			else:
-				out_no_bracket.write(values[0] + ',' + values[7] + '\n')
+	    else:
+		out_no_bracket.write(values[0] + ',' + values[7] + '\n')
 
 
 def extract_tubes():
@@ -119,5 +115,6 @@ def predict():
             out_.write('{},1\n'.format(id_))
 
 if __name__ == '__main__':
-    get_cost_coefficients_for_tube()
-    predict()
+    #get_cost_coefficients_for_tube()
+    #predict()
+	extract_train()
