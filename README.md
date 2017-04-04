@@ -11,4 +11,4 @@ If bracket: cost = base tube cost * bracket quantity multiplier
 
 If non-bracket: cost = base tube cost
 
-* base tube cost = f(diameter, wall, length, num_bends, bend_radius) - previous model
+* base tube cost = f(diameter, wall, length, num_bends, bend_radius) - linear regression from cost of 1-non-bracket tubes

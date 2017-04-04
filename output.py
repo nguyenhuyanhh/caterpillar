@@ -116,14 +116,16 @@ def merge_train_tube(in_train_file, in_tube_file, out_file):
                 continue
 
 
-def get_model_tube_base_cost():
+def get_model_bracket_base_cost():
     """
-    Get the model for tube base cost.
+    Get the model for bracket-pricing tube base cost.
 
     Model: cost = f(diameter, wall, length, num_bends, bend_radius) ::= y = Ax
     """
     # init paths
-    model_dir = os.path.join(CUR_DIR, 'model_tube_base_cost')
+    model_dir = os.path.join(CUR_DIR, 'model_bracket_base_cost')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
     extract_train_file = os.path.join(model_dir, 'extracted_train.csv')
     extract_tube_file = os.path.join(model_dir, 'extracted_tube.csv')
     merge_file = os.path.join(model_dir, 'merged.csv')
@@ -167,6 +169,8 @@ def get_model_bracket_multiplier():
     """
     # init paths
     model_dir = os.path.join(CUR_DIR, 'model_bracket_multiplier')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
     extract_train_file = os.path.join(model_dir, 'extracted_train.csv')
 
     # csv model data
@@ -185,6 +189,51 @@ def get_model_bracket_multiplier():
     log_x_mat = np.vstack([log_x_vect, np.ones(len(log_x_vect))]).T
     a_res, log_b_res = np.linalg.lstsq(log_x_mat, log_y_vect)[0]
     return [a_res, 10 ** log_b_res]
+
+
+def get_model_non_bracket_base_cost():
+    """
+    Get the model for non-bracket-pricing tube base cost.
+
+    Model: cost = f(diameter, wall, length, num_bends, bend_radius) ::= y = Ax
+    """
+    # init paths
+    model_dir = os.path.join(CUR_DIR, 'model_non_bracket_base_cost')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    extract_train_file = os.path.join(model_dir, 'extracted_train.csv')
+    extract_tube_file = os.path.join(model_dir, 'extracted_tube.csv')
+    merge_file = os.path.join(model_dir, 'merged.csv')
+
+    # csv model data
+    if not os.path.exists(extract_train_file):
+        extract_train(extract_train_file, quantity=1, bracket='No')
+    if not os.path.exists(extract_tube_file):
+        extract_tube(extract_tube_file)
+    merge_train_tube(extract_train_file, extract_tube_file, merge_file)
+
+    # get coefficients
+    y_vect = list()
+    diameter_vect = list()
+    wall_vect = list()
+    length_vect = list()
+    num_bends_vect = list()
+    bend_radius_vect = list()
+    with open(merge_file, 'r') as merged_:
+        tmp = merged_.readlines()[1:]
+        for line in tmp:
+            values = line.strip().split(',')
+            y_vect.append(float(values[-1]))
+            diameter_vect.append(float(values[1]))
+            wall_vect.append(float(values[2]))
+            length_vect.append(float(values[3]))
+            num_bends_vect.append(float(values[4]))
+            bend_radius_vect.append(float(values[5]))
+    a_mat = [diameter_vect, wall_vect, length_vect,
+             num_bends_vect, bend_radius_vect]
+    a_mat_big = np.column_stack(a_mat + [[1] * len(a_mat[0])])
+    x_vect = np.linalg.lstsq(a_mat_big, y_vect)[0]
+    return x_vect.tolist()
 
 
 def return_tube(tube_id):
@@ -209,18 +258,19 @@ def predict():
     """
     tubes = list()
     mult_tmp = get_model_bracket_multiplier()
-    base_tmp = get_model_tube_base_cost()
+    base_tmp_br = get_model_bracket_base_cost()
+    base_tmp_non = get_model_non_bracket_base_cost()
     with open(TEST_FILE, 'r') as in_:
         tubes = in_.readlines()[1:]
     with open(OUT_FILE, 'w') as out_:
         out_.write('id,cost\n')
         for tube in tubes:
             tmp = tube.strip().split(',')
-            base_tube = np.vdot(return_tube(tmp[1]), base_tmp)
             if tmp[-2] == 'Yes':
-                cost = base_tube * (int(tmp[-1]) ** mult_tmp[0])
+                cost = max(
+                    np.vdot(return_tube(tmp[1]), base_tmp_br) * (int(tmp[-1]) ** mult_tmp[0]), 0)
             else:
-                cost = base_tube
+                cost = max(np.vdot(return_tube(tmp[1]), base_tmp_non), 0)
             out_.write('{},{}\n'.format(tmp[0], cost))
 
 
