@@ -18,21 +18,13 @@ TUBE_FILE = os.path.join(DATA_DIR, 'tube.csv')
 TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
 # outputs
 OUT_FILE = os.path.join(CUR_DIR, 'out.csv')
-EXTRACT_TRAIN_BRACKET_FILE = os.path.join(
-    CUR_DIR, 'extracted_train_bracket.csv')
-EXTRACT_TRAIN_NO_BRACKET_FILE = os.path.join(
-    CUR_DIR, 'extracted_train_no_bracket.csv')
-MERGE_TRAIN_BRACKET_TUBE_FILE = os.path.join(
-    CUR_DIR, 'merged_train_bracket_tube.csv')
-MERGE_TRAIN_NO_BRACKET_TUBE_FILE = os.path.join(
-    CUR_DIR, 'merged_train_no_bracket_tube.csv')
 
 
 def extract_train(out_file, bracket='Yes', quantity='all'):
     """
     Extract train_set.csv.
 
-    Attributes:
+    Arguments:
         bracket: str('Yes'/'No') - whether bracket pricing is applied
         quantity: int/str('all') - int to match quantity, 'all' to match all
         out_file: str - path to output file
@@ -47,10 +39,16 @@ def extract_train(out_file, bracket='Yes', quantity='all'):
         out_.write(','.join(head_tmp) + '\n')
         for line in tmp[1:]:
             values = line.strip().split(',')
-            no_special = (int(values[3]) == int(values[4]) == 0)
-            match = (values[5] == bracket and no_special) if quantity == 'all' else (
-                values[5] == bracket and int(values[-2]) == quantity and no_special)
-            if match:
+            if bracket == 'Yes':
+                bracket_cond = (values[5] == bracket and int(
+                    values[3]) == int(values[4]) == 0)  # annual_usage/ min_order_quantity
+            else:
+                bracket_cond = (values[5] == bracket)
+            if quantity != 'all':
+                quantity_cond = (int(values[-2]) == quantity)
+            else:
+                quantity_cond = True
+            if bracket_cond and quantity_cond:
                 value_tmp = [values[0]] + values[-2:]
                 out_.write(','.join(value_tmp) + '\n')
 
@@ -59,7 +57,7 @@ def extract_tube(out_file):
     """
     Extract tube.csv.
 
-    Attributes:
+    Arguments:
         out_file: str - path to output file
     CSV header: tube_assembly_id,diameter,wall,length,num_bends,bend_radius
     """
@@ -83,7 +81,7 @@ def merge_train_tube(in_train_file, in_tube_file, out_file):
     """
     Merge two data sets from extract_train and extract_tube together.
 
-    Attributes:
+    Arguments:
         in_train_file: str - path to input train file
         in_tube_file: str - path to input tube file
         out_file: str - path to output file
@@ -185,19 +183,46 @@ def get_model_bracket_multiplier():
             log_y_vect.append(math.log10(float(values[-1])))
             log_x_vect.append(math.log10(float(values[-2])))
     log_x_mat = np.vstack([log_x_vect, np.ones(len(log_x_vect))]).T
-    res_vect = np.linalg.lstsq(log_x_mat, log_y_vect)[0]
-    return res_vect.tolist()
+    a_res, log_b_res = np.linalg.lstsq(log_x_mat, log_y_vect)[0]
+    return [a_res, 10 ** log_b_res]
+
+
+def return_tube(tube_id):
+    """
+    Return the tube characteristics for calculation.
+
+    Arguments:
+        tube_id: str('TA-xxxxx') - tube_assembly_id
+    """
+    id_num = int(tube_id[-5:])
+    with open(TUBE_FILE, 'r') as in_:
+        tmp = in_.readlines()
+        if id_num <= 19490:
+            return [float(i) for i in tmp[id_num].strip().split(',')[2:7]] + [1]
+        else:
+            return [float(i) for i in tmp[id_num - 1].strip().split(',')[2:7]] + [1]
 
 
 def predict():
     """
     Predict the price of each tube.
     """
-    with open(TEST_FILE, 'r') as in_, open(OUT_FILE, 'w') as out_:
-        ids = [line.strip().split(',')[0] for line in in_.readlines()[1:]]
+    tubes = list()
+    mult_tmp = get_model_bracket_multiplier()
+    base_tmp = get_model_tube_base_cost()
+    with open(TEST_FILE, 'r') as in_:
+        tubes = in_.readlines()[1:]
+    with open(OUT_FILE, 'w') as out_:
         out_.write('id,cost\n')
-        for id_ in ids:
-            out_.write('{},1\n'.format(id_))
+        for tube in tubes:
+            tmp = tube.strip().split(',')
+            base_tube = np.vdot(return_tube(tmp[1]), base_tmp)
+            if tmp[-2] == 'Yes':
+                cost = base_tube * (int(tmp[-1]) ** mult_tmp[0])
+            else:
+                cost = base_tube
+            out_.write('{},{}\n'.format(tmp[0], cost))
+
 
 if __name__ == '__main__':
-    pass
+    predict()
