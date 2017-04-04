@@ -4,7 +4,9 @@ Caterpillar Tube Pricing
 Nguyen Huy Anh, Lee Vicson, Deon Seng, Oh Yoke Chew
 """
 
+import math
 import os
+
 import numpy as np
 
 # init paths
@@ -116,18 +118,33 @@ def merge_train_tube(in_train_file, in_tube_file, out_file):
                 continue
 
 
-def get_cost_coefficients_for_tube(in_file):
+def get_model_tube_base_cost():
     """
-    Get the coefficients for linear regression of tube cost.
+    Get the model for tube base cost.
+
     Model: cost = f(diameter, wall, length, num_bends, bend_radius) ::= y = Ax
     """
+    # init paths
+    model_dir = os.path.join(CUR_DIR, 'model_tube_base_cost')
+    extract_train_file = os.path.join(model_dir, 'extracted_train.csv')
+    extract_tube_file = os.path.join(model_dir, 'extracted_tube.csv')
+    merge_file = os.path.join(model_dir, 'merged.csv')
+
+    # csv model data
+    if not os.path.exists(extract_train_file):
+        extract_train(extract_train_file, quantity=1)
+    if not os.path.exists(extract_tube_file):
+        extract_tube(extract_tube_file)
+    merge_train_tube(extract_train_file, extract_tube_file, merge_file)
+
+    # get coefficients
     y_vect = list()
     diameter_vect = list()
     wall_vect = list()
     length_vect = list()
     num_bends_vect = list()
     bend_radius_vect = list()
-    with open(in_file, 'r') as merged_:
+    with open(merge_file, 'r') as merged_:
         tmp = merged_.readlines()[1:]
         for line in tmp:
             values = line.strip().split(',')
@@ -141,23 +158,35 @@ def get_cost_coefficients_for_tube(in_file):
              num_bends_vect, bend_radius_vect]
     a_mat_big = np.column_stack(a_mat + [[1] * len(a_mat[0])])
     x_vect = np.linalg.lstsq(a_mat_big, y_vect)[0]
-    return x_vect
+    return x_vect.tolist()
 
 
-def get_model_tube_base_cost():
+def get_model_bracket_multiplier():
     """
-    Get the model for tube base cost.
+    Get the model for bracket quantity multiplier.
+
+    Model: cost = f(quantity) ::= y = b(x^a) / log(y) = a*log(x)+log(b)
     """
-    model_dir = os.path.join(CUR_DIR, 'model_tube_base_cost')
+    # init paths
+    model_dir = os.path.join(CUR_DIR, 'model_bracket_multiplier')
     extract_train_file = os.path.join(model_dir, 'extracted_train.csv')
-    extract_tube_file = os.path.join(model_dir, 'extracted_tube.csv')
-    merge_file = os.path.join(model_dir, 'merged.csv')
 
+    # csv model data
     if not os.path.exists(extract_train_file):
-        extract_train(extract_train_file, quantity=1)
-    if not os.path.exists(extract_tube_file):
-        extract_tube(extract_tube_file)
-    merge_train_tube(extract_train_file, extract_tube_file, merge_file)
+        extract_train(extract_train_file)
+
+    # get coefficients
+    log_y_vect = list()
+    log_x_vect = list()
+    with open(extract_train_file, 'r') as ext_:
+        tmp = ext_.readlines()[1:]
+        for line in tmp:
+            values = line.strip().split(',')
+            log_y_vect.append(math.log10(float(values[-1])))
+            log_x_vect.append(math.log10(float(values[-2])))
+    log_x_mat = np.vstack([log_x_vect, np.ones(len(log_x_vect))]).T
+    res_vect = np.linalg.lstsq(log_x_mat, log_y_vect)[0]
+    return res_vect.tolist()
 
 
 def predict():
@@ -171,4 +200,4 @@ def predict():
             out_.write('{},1\n'.format(id_))
 
 if __name__ == '__main__':
-    get_model_tube_base_cost()
+    pass
