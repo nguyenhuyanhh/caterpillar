@@ -5,8 +5,9 @@ Nguyen Huy Anh, Lee Vicson, Deon Seng, Oh Yoke Chew
 """
 
 import os
-#import numpy as np
+import numpy as np
 
+# init paths
 CUR_DIR = os.path.dirname(os.path.realpath(__file__))
 DATA_DIR = os.path.join(CUR_DIR, 'competition_data')
 # inputs
@@ -15,70 +16,107 @@ TUBE_FILE = os.path.join(DATA_DIR, 'tube.csv')
 TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
 # outputs
 OUT_FILE = os.path.join(CUR_DIR, 'out.csv')
-EXTRACT_TRAIN_BRACKET_FILE = os.path.join(CUR_DIR, 'extracted_train_bracket.csv')
-EXTRACT_TRAIN_NO_BRACKET_FILE = os.path.join(CUR_DIR, 'extracted_train_no_bracket.csv')
-EXTRACT_TUBE_FILE = os.path.join(CUR_DIR, 'extracted_tube.csv')
-MERGE_TRAIN_BRACKET_TUBE_FILE = os.path.join(CUR_DIR, 'merged_train_bracket_tube.csv')
-MERGE_TRAIN_NO_BRACKET_TUBE_FILE = os.path.join(CUR_DIR, 'merged_train_no_bracket_tube.csv')
+EXTRACT_TRAIN_BRACKET_FILE = os.path.join(
+    CUR_DIR, 'extracted_train_bracket.csv')
+EXTRACT_TRAIN_NO_BRACKET_FILE = os.path.join(
+    CUR_DIR, 'extracted_train_no_bracket.csv')
+MERGE_TRAIN_BRACKET_TUBE_FILE = os.path.join(
+    CUR_DIR, 'merged_train_bracket_tube.csv')
+MERGE_TRAIN_NO_BRACKET_TUBE_FILE = os.path.join(
+    CUR_DIR, 'merged_train_no_bracket_tube.csv')
 
 
-def extract_train():
+def extract_train(out_file, bracket='Yes', quantity='all'):
     """
     Extract train_set.csv.
-    Only extract tubes with bracket pricing and quantity 1.
+
+    Attributes:
+        bracket: str('Yes'/'No') - whether bracket pricing is applied
+        quantity: int/str('all') - int to match quantity, 'all' to match all
+        out_file: str - path to output file
+    CSV header: tube_assembly_id,quantity,cost
     """
-    with open(TRAIN_FILE, 'r') as in_, open(EXTRACT_TRAIN_BRACKET_FILE, 'w') as out_bracket, open(EXTRACT_TRAIN_NO_BRACKET_FILE, 'w') as out_no_bracket:
+    tmp = list()
+    with open(TRAIN_FILE, 'r') as in_:
         tmp = in_.readlines()
+    with open(out_file, 'w') as out_:
         head = tmp[0].strip().split(',')
-        out_bracket.write(head[0] + ',' + head[7] + '\n')
-        out_no_bracket.write(head[0] + ',' + head[7] + '\n')
+        head_tmp = [head[0]] + head[-2:]
+        out_.write(','.join(head_tmp) + '\n')
         for line in tmp[1:]:
             values = line.strip().split(',')
-            if values[5] == 'Yes':
-                out_bracket.write(values[0] + ',' + values[7] + '\n')
-            else:
-                out_no_bracket.write(values[0] + ',' + values[7] + '\n')
+            no_special = (int(values[3]) == int(values[4]) == 0)
+            match = (values[5] == bracket and no_special) if quantity == 'all' else (
+                values[5] == bracket and int(values[-2]) == quantity and no_special)
+            if match:
+                value_tmp = [values[0]] + values[-2:]
+                out_.write(','.join(value_tmp) + '\n')
 
 
-def extract_tubes():
+def extract_tube(out_file):
     """
     Extract tube.csv.
-    Only extract tubes with no special characteristics.
+
+    Attributes:
+        out_file: str - path to output file
+    CSV header: tube_assembly_id,diameter,wall,length,num_bends,bend_radius
     """
-    with open(TUBE_FILE, 'r') as in_, open(EXTRACT_TUBE_FILE, 'w') as out_:
+    tmp = list()
+    with open(TUBE_FILE, 'r') as in_:
         tmp = in_.readlines()
-        head_tmp = tmp[0].strip().split(',')
-        head = [head_tmp[0]] + head_tmp[2:7]
-        out_.write(','.join(head) + '\n')
+    with open(out_file, 'w') as out_:
+        head = tmp[0].strip().split(',')
+        head_tmp = [head[0]] + head[2:7]
+        out_.write(','.join(head_tmp) + '\n')
         for line in tmp[1:]:
             values = line.strip().split(',')
-            if int(values[-1]) == int(values[-2]) == int(values[-3]) == 0 and values[-6] == values[-7] == values[-8] == values[-9] == 'N':
+            no_special = (int(values[-1]) == int(values[-2]) == int(values[-3]) ==
+                          0 and values[-6] == values[-7] == values[-8] == values[-9] == 'N')
+            if no_special:
                 values_tmp = [values[0]] + values[2:7]
                 out_.write(','.join(values_tmp) + '\n')
 
 
-def merge_train_tubes(in_file, out_file):
+def merge_train_tube(in_train_file, in_tube_file, out_file):
     """
-    Merge two data sets from extract_train and extract_tubes together.
+    Merge two data sets from extract_train and extract_tube together.
+
+    Attributes:
+        in_train_file: str - path to input train file
+        in_tube_file: str - path to input tube file
+        out_file: str - path to output file
+    CSV header: tube_assembly_id,diameter,wall,length,num_bends,bend_radius,quantity,cost
     """
-    with open(in_file, 'r') as train_, open(EXTRACT_TUBE_FILE, 'r') as tube_, open(out_file, 'w') as out_:
+    tmp_train = list()
+    tmp_tube = list()
+    with open(in_train_file, 'r') as train_:
         tmp_train = train_.readlines()
+    with open(in_tube_file, 'r') as tube_:
         tmp_tube = tube_.readlines()
+    with open(out_file, 'w') as out_:
         head_tmp = tmp_tube[0].strip().split(
-            ',') + [tmp_train[0].strip().split(',')[1]]
+            ',') + tmp_train[0].strip().split(',')[1:]
         out_.write(','.join(head_tmp) + '\n')
-        for tube_line in tmp_tube[1:]:
-            tube_tmp = tube_line.strip().split(',')
-            key = tube_tmp[0]
-            for train_line in tmp_train[1:]:
-                train_tmp = train_line.strip().split(',')
-                if train_tmp[0] == key:
-                    value_tmp = tube_tmp + [train_tmp[1]]
-                    out_.write(','.join(value_tmp) + '\n')
-                    break
+        tr_ = 1
+        tu_ = 1
+        while tr_ < len(tmp_train) and tu_ < len(tmp_tube):
+            train_tmp = tmp_train[tr_].strip().split(',')
+            tube_tmp = tmp_tube[tu_].strip().split(',')
+            if train_tmp[0] < tube_tmp[0]:
+                tr_ += 1
+                continue
+            elif train_tmp[0] > tube_tmp[0]:
+                tu_ += 1
+                continue
+            else:
+                value_tmp = tube_tmp + train_tmp[1:]
+                out_.write(','.join(value_tmp) + '\n')
+                tr_ += 1
+                tu_ += 1
+                continue
 
 
-def get_cost_coefficients_for_tube():
+def get_cost_coefficients_for_tube(in_file):
     """
     Get the coefficients for linear regression of tube cost.
     Model: cost = f(diameter, wall, length, num_bends, bend_radius) ::= y = Ax
@@ -89,7 +127,7 @@ def get_cost_coefficients_for_tube():
     length_vect = list()
     num_bends_vect = list()
     bend_radius_vect = list()
-    with open(MERGE_TRAIN_TUBE_FILE, 'r') as merged_:
+    with open(in_file, 'r') as merged_:
         tmp = merged_.readlines()[1:]
         for line in tmp:
             values = line.strip().split(',')
@@ -106,6 +144,22 @@ def get_cost_coefficients_for_tube():
     return x_vect
 
 
+def get_model_tube_base_cost():
+    """
+    Get the model for tube base cost.
+    """
+    model_dir = os.path.join(CUR_DIR, 'model_tube_base_cost')
+    extract_train_file = os.path.join(model_dir, 'extracted_train.csv')
+    extract_tube_file = os.path.join(model_dir, 'extracted_tube.csv')
+    merge_file = os.path.join(model_dir, 'merged.csv')
+
+    if not os.path.exists(extract_train_file):
+        extract_train(extract_train_file, quantity=1)
+    if not os.path.exists(extract_tube_file):
+        extract_tube(extract_tube_file)
+    merge_train_tube(extract_train_file, extract_tube_file, merge_file)
+
+
 def predict():
     """
     Predict the price of each tube.
@@ -117,8 +171,4 @@ def predict():
             out_.write('{},1\n'.format(id_))
 
 if __name__ == '__main__':
-    #get_cost_coefficients_for_tube()
-    #predict()
-    extract_train()
-    merge_train_tubes(EXTRACT_TRAIN_BRACKET_FILE, MERGE_TRAIN_BRACKET_TUBE_FILE)
-    merge_train_tubes(EXTRACT_TRAIN_NO_BRACKET_FILE, MERGE_TRAIN_NO_BRACKET_TUBE_FILE)
+    get_model_tube_base_cost()
