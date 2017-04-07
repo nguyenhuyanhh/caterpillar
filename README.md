@@ -4,10 +4,10 @@ Dis mashine learning, it kool
 
 ## Simple model
 
-If bracket: cost = base tube cost * bracket quantity multiplier
+If bracket: cost = f(base_tube_cost, quantity)
 
-* base tube cost = f(diameter, wall, length, num_bends, bend_radius) - linear regression from cost of 1-bracket tubes
-* bracket quantity multiplier = f(quantity) - power law, linear regression through log(quantity)/price
+* base_tube_cost = f(diameter, wall, length, num_bends, bend_radius) - linear regression from cost of 1-bracket tubes
+* cost coefficients - linear regression of cost*quantity over quantity
 
 If non-bracket: cost = base tube cost
 

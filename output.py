@@ -4,7 +4,6 @@ Caterpillar Tube Pricing
 Nguyen Huy Anh, Lee Vicson, Deon Seng, Oh Yoke Chew
 """
 
-import math
 import os
 
 import numpy as np
@@ -165,7 +164,7 @@ def get_model_bracket_multiplier():
     """
     Get the model for bracket quantity multiplier.
 
-    Model: cost = f(quantity) ::= y = b(x^a) / log(y) = a*log(x)+log(b)
+    Model: cost*quantity = f(quantity) ::= y = Ax
     """
     # init paths
     model_dir = os.path.join(CUR_DIR, 'model_bracket_multiplier')
@@ -178,17 +177,17 @@ def get_model_bracket_multiplier():
         extract_train(extract_train_file)
 
     # get coefficients
-    log_y_vect = list()
-    log_x_vect = list()
+    y_vect = list()
+    a_vect = list()
     with open(extract_train_file, 'r') as ext_:
         tmp = ext_.readlines()[1:]
         for line in tmp:
             values = line.strip().split(',')
-            log_y_vect.append(math.log10(float(values[-1])))
-            log_x_vect.append(math.log10(float(values[-2])))
-    log_x_mat = np.vstack([log_x_vect, np.ones(len(log_x_vect))]).T
-    a_res, log_b_res = np.linalg.lstsq(log_x_mat, log_y_vect)[0]
-    return [a_res, 10 ** log_b_res]
+            y_vect.append(float(values[-1]) * float(values[-2]))
+            a_vect.append(float(values[-2]))
+    a_mat = np.vstack([a_vect, np.ones(len(a_vect))]).T
+    x_vect = np.linalg.lstsq(a_mat, y_vect)[0]
+    return x_vect.tolist()
 
 
 def get_model_non_bracket_base_cost():
@@ -267,11 +266,20 @@ def predict():
         for tube in tubes:
             tmp = tube.strip().split(',')
             if tmp[-2] == 'Yes':
+                base_cost = np.vdot(return_tube(tmp[1]), base_tmp_br)
+                coef = base_cost - mult_tmp[0]
                 cost = max(
-                    np.vdot(return_tube(tmp[1]), base_tmp_br) * (int(tmp[-1]) ** mult_tmp[0]), 0)
+                    (mult_tmp[0] * int(tmp[-1]) + coef) / int(tmp[-1]), 0)
             else:
                 cost = max(np.vdot(return_tube(tmp[1]), base_tmp_non), 0)
             out_.write('{},{}\n'.format(tmp[0], cost))
+
+
+def rmsle(predictions, targets):
+    """Calculate the root-mean-square-log-error of predictions over target."""
+    pre_ = np.array(predictions)
+    tar_ = np.array(targets)
+    return np.sqrt(np.square(np.log(pre_ + 1) - np.log(tar_ + 1)).mean())
 
 
 if __name__ == '__main__':
