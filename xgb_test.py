@@ -111,10 +111,16 @@ def merge_test_tube():
         for line in tmp_test:
             tmp = line.strip().split(',')
             tube_id = int(tmp[1][-5:])
+            encoding = ['0','0','0','0','0','0','0']
+            if tmp[2] in SUPP_ENCODE:
+                index = SUPP_ENCODE.index(tmp[2])
+                encoding[index] = '1'
+            else:
+                encoding[-1] = '1'
             if tube_id > 19490:
                 tube_id = tube_id - 1
             tube_info = ((tmp_tube[tube_id]).strip().split(','))[2:7]
-            out_tmp = [tmp[1]] + tube_info + tmp[-2:]
+            out_tmp = [tmp[1]] + tube_info + encoding + tmp[-2:]
             out_.write(','.join(out_tmp) + '\n')
         
 
@@ -215,6 +221,9 @@ def predict():
 
 if __name__ == '__main__':
     extract_train()
+    extract_tube('out_tube.csv')
+    merge_train_tube('out_train.csv','out_tube.csv','out_train_merged.csv')
+    merge_test_tube()
     """try:
         train()
         predict()
