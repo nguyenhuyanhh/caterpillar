@@ -20,7 +20,7 @@ TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
 #CONSTANTS
 SUPP_ENCODE = ['S-0066','S-0041','S-0072','S-0054','S-0026','S-0013','others']
 # outputs
-OUT_FILE = os.path.join(CUR_DIR, 'out.csv')
+OUT_FILE = os.path.join(CUR_DIR, 'out_with_one_hot_and_usage_and_min_qnt.csv')
 
 def extract_train():
     """
@@ -42,7 +42,7 @@ def extract_train():
                 encoding[index] = '1'
             else:
                 encoding[-1] = '1'
-            value_tmp = [values[0]] + encoding + values[-3:]
+            value_tmp = [values[0]] + encoding + values[-5:]
             out_.write(','.join(value_tmp) + '\n')
 
 def extract_tube(out_file):
@@ -120,7 +120,7 @@ def merge_test_tube():
             if tube_id > 19490:
                 tube_id = tube_id - 1
             tube_info = ((tmp_tube[tube_id]).strip().split(','))[2:7]
-            out_tmp = [tmp[1]] + tube_info + encoding + tmp[-2:]
+            out_tmp = [tmp[1]] + tube_info + encoding + tmp[-4:]
             out_.write(','.join(out_tmp) + '\n')
         
 
@@ -133,9 +133,19 @@ def train():
     length_vect = list()
     num_bends_vect = list()
     bend_radius_vect = list()
+    #SUPP_ENCODE = ['S-0066','S-0041','S-0072','S-0054','S-0026','S-0013','others']
+    s66 = list()
+    s41 = list()
+    s72 = list()
+    s54 = list()
+    s26 = list()
+    s13 = list()
+    others = list()
+    min_q = list()
+    usage = list()
     quantity_vect = list()
     bracket_vect = list()
-    with open(os.path.join(CUR_DIR,'out_merged.csv'), 'r') as merged_:
+    with open(os.path.join(CUR_DIR,'out_train_merged.csv'), 'r') as merged_:
         tmp = merged_.readlines()[1:]
         for line in tmp:
             values = line.strip().split(',')
@@ -150,13 +160,22 @@ def train():
             length_vect.append(float(values[3]))
             num_bends_vect.append(float(values[4]))
             bend_radius_vect.append(float(values[5]))
+            s66.append(int(values[-12]))
+            s41.append(int(values[-11]))
+            s72.append(int(values[-10]))
+            s54.append(int(values[-9]))
+            s26.append(int(values[-8]))
+            s13.append(int(values[-7]))
+            others.append(int(values[-6]))
+            usage.append(int(values[-5]))
+            min_q.append(int(values[-4]))
             quantity_vect.append(float(values[-2]))
             if values[-3] == 'Yes':
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
     a_mat = [id_vect, diameter_vect, wall_vect, length_vect,
-             num_bends_vect, bend_radius_vect, quantity_vect, bracket_vect]
+             num_bends_vect, bend_radius_vect, s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
     dtrain = xgb.DMatrix(a_mat_big, label=y_vect)
@@ -182,6 +201,16 @@ def predict():
     length_vect = list()
     num_bends_vect = list()
     bend_radius_vect = list()
+    #SUPP_ENCODE = ['S-0066','S-0041','S-0072','S-0054','S-0026','S-0013','others']
+    s66 = list()
+    s41 = list()
+    s72 = list()
+    s54 = list()
+    s26 = list()
+    s13 = list()
+    others = list()
+    min_q = list()
+    usage = list()
     quantity_vect = list()
     bracket_vect = list()
     with open(os.path.join(CUR_DIR,'out_test.csv'), 'r') as merged_:
@@ -195,13 +224,22 @@ def predict():
             length_vect.append(float(values[3]))
             num_bends_vect.append(float(values[4]))
             bend_radius_vect.append(float(values[5]))
+            s66.append(int(values[-11]))
+            s41.append(int(values[-10]))
+            s72.append(int(values[-9]))
+            s54.append(int(values[-8]))
+            s26.append(int(values[-7]))
+            s13.append(int(values[-6]))
+            others.append(int(values[-5]))
+            usage.append(int(values[-4]))
+            min_q.append(int(values[-3]))
             quantity_vect.append(float(values[-1]))
             if values[-2] == 'Yes':
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
     a_mat = [id_vect, diameter_vect, wall_vect, length_vect,
-             num_bends_vect, bend_radius_vect, quantity_vect, bracket_vect]
+             num_bends_vect, bend_radius_vect, s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
     dtest = xgb.DMatrix(a_mat_big)
@@ -224,7 +262,7 @@ if __name__ == '__main__':
     extract_tube('out_tube.csv')
     merge_train_tube('out_train.csv','out_tube.csv','out_train_merged.csv')
     merge_test_tube()
-    """try:
+    try:
         train()
         predict()
         print('done')
@@ -232,5 +270,5 @@ if __name__ == '__main__':
     except Exception as e:
         print(e.args)
         print("Press Enter to continue ..." )
-        input() """
+        input()
 
