@@ -17,10 +17,14 @@ DATA_DIR = os.path.join(CUR_DIR, 'competition_data')
 TRAIN_FILE = os.path.join(DATA_DIR, 'train_set.csv')
 TUBE_FILE = os.path.join(DATA_DIR, 'tube.csv')
 TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
+# CONSTANTS
+SUPP_ENCODE = ['S-0066', 'S-0041', 'S-0072',
+               'S-0054', 'S-0026', 'S-0013', 'others']
 # outputs
-OUT_FILE = os.path.join(CUR_DIR, 'out.csv')
+OUT_FILE = os.path.join(CUR_DIR, 'out_with_one_hot_and_usage_and_min_qnt.csv')
 
-def extract_train(out_file):
+
+def extract_train():
     """
     Modified to extract all train data
     CSV header: tube_assembly_id,bracket,quantity,cost
@@ -30,12 +34,19 @@ def extract_train(out_file):
         tmp = in_.readlines()
     with open('out_train.csv', 'w') as out_:
         head = tmp[0].strip().split(',')
-        head_tmp = [head[0]] + head[-2:]
+        head_tmp = [head[0]] + SUPP_ENCODE + head[-2:]
         out_.write(','.join(head_tmp) + '\n')
         for line in tmp[1:]:
             values = line.strip().split(',')
-            value_tmp = [values[0]] + values[-3:]
+            encoding = ['0', '0', '0', '0', '0', '0', '0']
+            if values[1] in SUPP_ENCODE:
+                index = SUPP_ENCODE.index(values[1])
+                encoding[index] = '1'
+            else:
+                encoding[-1] = '1'
+            value_tmp = [values[0]] + encoding + values[-5:]
             out_.write(','.join(value_tmp) + '\n')
+
 
 def extract_tube(out_file):
     """
@@ -56,6 +67,7 @@ def extract_tube(out_file):
             values = line.strip().split(',')
             values_tmp = [values[0]] + values[2:7]
             out_.write(','.join(values_tmp) + '\n')
+
 
 def merge_train_tube(in_train_file, in_tube_file, out_file):
     """
@@ -94,21 +106,28 @@ def merge_train_tube(in_train_file, in_tube_file, out_file):
                 tr_ += 1
                 continue
 
+
 def merge_test_tube():
     with open(TEST_FILE, 'r') as in_:
         tmp_test = in_.readlines()[1:]
     with open(TUBE_FILE, 'r') as tube_:
         tmp_tube = tube_.readlines()
-    with open(os.path.join(CUR_DIR,'out_test.csv'), 'w') as out_:
+    with open(os.path.join(CUR_DIR, 'out_test.csv'), 'w') as out_:
         for line in tmp_test:
             tmp = line.strip().split(',')
             tube_id = int(tmp[1][-5:])
+            encoding = ['0', '0', '0', '0', '0', '0', '0']
+            if tmp[2] in SUPP_ENCODE:
+                index = SUPP_ENCODE.index(tmp[2])
+                encoding[index] = '1'
+            else:
+                encoding[-1] = '1'
             if tube_id > 19490:
                 tube_id = tube_id - 1
             tube_info = ((tmp_tube[tube_id]).strip().split(','))[2:7]
-            out_tmp = [tmp[1]] + tube_info + tmp[-2:]
+            out_tmp = [tmp[1]] + tube_info + encoding + tmp[-4:]
             out_.write(','.join(out_tmp) + '\n')
-        
+
 
 def train():
     # get coefficients
@@ -119,14 +138,24 @@ def train():
     length_vect = list()
     num_bends_vect = list()
     bend_radius_vect = list()
+    #SUPP_ENCODE = ['S-0066','S-0041','S-0072','S-0054','S-0026','S-0013','others']
+    s66 = list()
+    s41 = list()
+    s72 = list()
+    s54 = list()
+    s26 = list()
+    s13 = list()
+    others = list()
+    min_q = list()
+    usage = list()
     quantity_vect = list()
     bracket_vect = list()
-    with open(os.path.join(CUR_DIR,'out_merged.csv'), 'r') as merged_:
+    with open(os.path.join(CUR_DIR, 'out_train_merged.csv'), 'r') as merged_:
         tmp = merged_.readlines()[1:]
         for line in tmp:
             values = line.strip().split(',')
 
-            transform = math.log10(float(values[-1])+1)
+            transform = math.log10(float(values[-1]) + 1)
             # transform y to log10(1+y)
             y_vect.append(transform)
 
@@ -136,19 +165,28 @@ def train():
             length_vect.append(float(values[3]))
             num_bends_vect.append(float(values[4]))
             bend_radius_vect.append(float(values[5]))
+            s66.append(int(values[-12]))
+            s41.append(int(values[-11]))
+            s72.append(int(values[-10]))
+            s54.append(int(values[-9]))
+            s26.append(int(values[-8]))
+            s13.append(int(values[-7]))
+            others.append(int(values[-6]))
+            usage.append(int(values[-5]))
+            min_q.append(int(values[-4]))
             quantity_vect.append(float(values[-2]))
             if values[-3] == 'Yes':
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
     a_mat = [id_vect, diameter_vect, wall_vect, length_vect,
-             num_bends_vect, bend_radius_vect, quantity_vect, bracket_vect]
+             num_bends_vect, bend_radius_vect, s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
     dtrain = xgb.DMatrix(a_mat_big, label=y_vect)
-    param = {'max_depth':8,
-             'eta':0.3,
-             'min_child_weight':5}
+    param = {'max_depth': 8,
+             'eta': 0.3,
+             'min_child_weight': 5}
     # I have no clue what any of these do, but yeah
     num_round = 30
     """
@@ -159,7 +197,8 @@ def train():
     """
     model = xgb.train(param, dtrain, num_round)
     # This is the model
-    model.save_model(os.path.join(CUR_DIR,'0001.model'))
+    model.save_model(os.path.join(CUR_DIR, '0001.model'))
+
 
 def predict():
     id_vect = list()
@@ -168,44 +207,67 @@ def predict():
     length_vect = list()
     num_bends_vect = list()
     bend_radius_vect = list()
+    #SUPP_ENCODE = ['S-0066','S-0041','S-0072','S-0054','S-0026','S-0013','others']
+    s66 = list()
+    s41 = list()
+    s72 = list()
+    s54 = list()
+    s26 = list()
+    s13 = list()
+    others = list()
+    min_q = list()
+    usage = list()
     quantity_vect = list()
     bracket_vect = list()
-    with open(os.path.join(CUR_DIR,'out_test.csv'), 'r') as merged_:
+    with open(os.path.join(CUR_DIR, 'out_test.csv'), 'r') as merged_:
         tmp = merged_.readlines()
         for line in tmp:
             values = line.strip().split(',')
-            
+
             id_vect.append(float(values[0][-5:]))
             diameter_vect.append(float(values[1]))
             wall_vect.append(float(values[2]))
             length_vect.append(float(values[3]))
             num_bends_vect.append(float(values[4]))
             bend_radius_vect.append(float(values[5]))
+            s66.append(int(values[-11]))
+            s41.append(int(values[-10]))
+            s72.append(int(values[-9]))
+            s54.append(int(values[-8]))
+            s26.append(int(values[-7]))
+            s13.append(int(values[-6]))
+            others.append(int(values[-5]))
+            usage.append(int(values[-4]))
+            min_q.append(int(values[-3]))
             quantity_vect.append(float(values[-1]))
             if values[-2] == 'Yes':
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
     a_mat = [id_vect, diameter_vect, wall_vect, length_vect,
-             num_bends_vect, bend_radius_vect, quantity_vect, bracket_vect]
+             num_bends_vect, bend_radius_vect, s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
     dtest = xgb.DMatrix(a_mat_big)
-    model = xgb.Booster({'nthread':4}) #init model
-    model.load_model(os.path.join(CUR_DIR,'0001.model')) # load model
+    model = xgb.Booster({'nthread': 4})  # init model
+    model.load_model(os.path.join(CUR_DIR, '0001.model'))  # load model
     ypred = model.predict(dtest)
     # predict based on model
-    
+
     id = 1
     with open(OUT_FILE, 'w') as out_:
         out_.write('id,cost\n')
         for pred in ypred:
-            cost = math.pow(10,pred) - 1
+            cost = math.pow(10, pred) - 1
             # transform predictions back to y with (10 ** pred) - 1
             out_.write('{},{}\n'.format(id, cost))
             id += 1
 
 if __name__ == '__main__':
+    extract_train()
+    extract_tube('out_tube.csv')
+    merge_train_tube('out_train.csv', 'out_tube.csv', 'out_train_merged.csv')
+    merge_test_tube()
     try:
         train()
         predict()
@@ -213,6 +275,5 @@ if __name__ == '__main__':
         input()
     except Exception as e:
         print(e.args)
-        print("Press Enter to continue ..." )
-        input() 
-
+        print("Press Enter to continue ...")
+        input()
