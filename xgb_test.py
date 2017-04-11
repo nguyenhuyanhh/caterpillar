@@ -113,6 +113,7 @@ def merge_test_tube():
 def train():
     # get coefficients
     y_vect = list()
+    id_vect = list()
     diameter_vect = list()
     wall_vect = list()
     length_vect = list()
@@ -128,7 +129,8 @@ def train():
             transform = math.log10(float(values[-1])+1)
             # transform y to log10(1+y)
             y_vect.append(transform)
-            
+
+            id_vect.append(float(values[0][-5:]))
             diameter_vect.append(float(values[1]))
             wall_vect.append(float(values[2]))
             length_vect.append(float(values[3]))
@@ -139,18 +141,28 @@ def train():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [diameter_vect, wall_vect, length_vect,
+    a_mat = [id_vect, diameter_vect, wall_vect, length_vect,
              num_bends_vect, bend_radius_vect, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
     dtrain = xgb.DMatrix(a_mat_big, label=y_vect)
-    param = {'max_depth':5, 'eta':1}
-    num_round = 10
-    bst = xgb.train(param, dtrain, num_round)
-    # The model itself is bst
-    bst.save_model(os.path.join(CUR_DIR,'0001.model'))
+    param = {'max_depth':8,
+             'eta':0.3,
+             'min_child_weight':5}
+    # I have no clue what any of these do, but yeah
+    num_round = 30
+    """
+    # using the built in cv method to check errors, it uses rmse though
+    xgb.cv(param, dtrain, num_round, nfold=5,
+       metrics={'rmse'}, seed = 0,
+       callbacks=[xgb.callback.print_evaluation(show_stdv=True)])
+    """
+    model = xgb.train(param, dtrain, num_round)
+    # This is the model
+    model.save_model(os.path.join(CUR_DIR,'0001.model'))
 
 def predict():
+    id_vect = list()
     diameter_vect = list()
     wall_vect = list()
     length_vect = list()
@@ -162,6 +174,8 @@ def predict():
         tmp = merged_.readlines()
         for line in tmp:
             values = line.strip().split(',')
+            
+            id_vect.append(float(values[0][-5:]))
             diameter_vect.append(float(values[1]))
             wall_vect.append(float(values[2]))
             length_vect.append(float(values[3]))
@@ -172,15 +186,16 @@ def predict():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [diameter_vect, wall_vect, length_vect,
+    a_mat = [id_vect, diameter_vect, wall_vect, length_vect,
              num_bends_vect, bend_radius_vect, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
     dtest = xgb.DMatrix(a_mat_big)
-    bst = xgb.Booster({'nthread':4}) #init model
-    bst.load_model(os.path.join(CUR_DIR,'0001.model')) # load model
-
-    ypred = bst.predict(dtest)
+    model = xgb.Booster({'nthread':4}) #init model
+    model.load_model(os.path.join(CUR_DIR,'0001.model')) # load model
+    ypred = model.predict(dtest)
+    # predict based on model
+    
     id = 1
     with open(OUT_FILE, 'w') as out_:
         out_.write('id,cost\n')
