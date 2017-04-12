@@ -21,7 +21,7 @@ TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
 SUPP_ENCODE = ['S-0066', 'S-0041', 'S-0072',
                'S-0054', 'S-0026', 'S-0013', 'others']
 # outputs
-OUT_FILE = os.path.join(CUR_DIR, 'out_with_one_hot_and_usage_and_min_qnt.csv')
+OUT_FILE = os.path.join(CUR_DIR, 'out_latest.csv')
 
 
 def extract_train(out_file):
@@ -136,7 +136,7 @@ def merge_test_tube():
     """
     with open(TEST_FILE, 'r') as in_:
         tmp_test = in_.readlines()[1:]
-    with open(TUBE_FILE, 'r') as tube_:
+    with open('out_tube.csv', 'r') as tube_:
         tmp_tube = tube_.readlines()
     with open(os.path.join(CUR_DIR, 'out_test.csv'), 'w') as out_:
         for line in tmp_test:
@@ -150,7 +150,7 @@ def merge_test_tube():
                 encoding[-1] = '1'
             if tube_id > 19490:
                 tube_id = tube_id - 1
-            tube_info = ((tmp_tube[tube_id]).strip().split(','))[2:7]
+            tube_info = ((tmp_tube[tube_id]).strip().split(','))[2:]
             out_tmp = [tmp[1]] + tube_info + encoding + tmp[-4:]
             out_.write(','.join(out_tmp) + '\n')
 
@@ -176,6 +176,9 @@ def train():
     others = list()
     min_q = list()
     usage = list()
+    weighted = list()
+    not_weighted = list()
+    total_weight = list()
     quantity_vect = list()
     bracket_vect = list()
     with open(os.path.join(CUR_DIR, 'out_train_merged.csv'), 'r') as merged_:
@@ -193,6 +196,11 @@ def train():
             length_vect.append(float(values[3]))
             num_bends_vect.append(float(values[4]))
             bend_radius_vect.append(float(values[5]))
+            weighted.append(int(values[-15]))
+            not_weighted.append(int(values[-14]))
+            transform = math.log10(float(values[-13]) + 1)
+            # transform y to log10(1+y)
+            total_weight.append(transform)
             s66.append(int(values[-12]))
             s41.append(int(values[-11]))
             s72.append(int(values[-10]))
@@ -207,7 +215,7 @@ def train():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect,
+    a_mat = [diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, weighted, total_weight,
              s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
@@ -245,6 +253,9 @@ def predict():
     s26 = list()
     s13 = list()
     others = list()
+    weighted = list()
+    not_weighted = list()
+    total_weight = list()
     min_q = list()
     usage = list()
     quantity_vect = list()
@@ -260,6 +271,11 @@ def predict():
             length_vect.append(float(values[3]))
             num_bends_vect.append(float(values[4]))
             bend_radius_vect.append(float(values[5]))
+            weighted.append(int(values[-14]))
+            not_weighted.append(int(values[-13]))
+            transform = math.log10(float(values[-12]) + 1)
+            # transform y to log10(1+y)
+            total_weight.append(transform)
             s66.append(int(values[-11]))
             s41.append(int(values[-10]))
             s72.append(int(values[-9]))
@@ -274,7 +290,7 @@ def predict():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect,
+    a_mat = [diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, weighted, total_weight,
              s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
@@ -300,10 +316,10 @@ if __name__ == '__main__':
     print('written out_tube.csv')
     merge_train_tube('out_train.csv', 'out_tube.csv', 'out_train_merged.csv')
     print('written out_train_merged.csv')
-    """merge_test_tube()
+    merge_test_tube()
     print('written out_test.csv')
     print('training...')
     train()
     print('predicting...')
     predict()
-    print('done')"""
+    print('done')
