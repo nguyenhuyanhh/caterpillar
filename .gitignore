@@ -4,3 +4,7 @@ __pycache__/
 
 # VSCode
 .vscode
+
+# Models for linear regression
+model_bracket*/
+model_non_bracket*/

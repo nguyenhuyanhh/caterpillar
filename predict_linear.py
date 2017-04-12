@@ -1,5 +1,6 @@
 """
 Caterpillar Tube Pricing
+v1: Linear Regression
 
 Nguyen Huy Anh, Lee Vicson, Deon Seng, Oh Yoke Chew
 """
@@ -273,13 +274,6 @@ def predict():
             else:
                 cost = max(np.vdot(return_tube(tmp[1]), base_tmp_non), 0)
             out_.write('{},{}\n'.format(tmp[0], cost))
-
-
-def rmsle(predictions, targets):
-    """Calculate the root-mean-square-log-error of predictions over target."""
-    pre_ = np.array(predictions)
-    tar_ = np.array(targets)
-    return np.sqrt(np.square(np.log(pre_ + 1) - np.log(tar_ + 1)).mean())
 
 
 if __name__ == '__main__':
