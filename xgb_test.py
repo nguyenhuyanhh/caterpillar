@@ -63,16 +63,30 @@ def extract_tube(out_file):
         tube_assembly_id,diameter,wall,length,num_bends,bend_radius
     """
     tmp = list()
+    total_weight = list()
     with open(TUBE_FILE, 'r') as in_:
         tmp = in_.readlines()
+    with open('tube_total_weight.csv','r') as weight_:
+        total_weight = weight_.readlines()
     with open(out_file, 'w') as out_:
         head = tmp[0].strip().split(',')
-        head_tmp = [head[0]] + head[2:7]
+        head2 = total_weight[0].strip().split(',')
+        head3 = ['weighted','not weighted']
+        head_tmp = [head[0]] + head[2:7] + head3 + [head2[-1]]
         out_.write(','.join(head_tmp) + '\n')
+        i = 1
         for line in tmp[1:]:
+            weight_raw = total_weight[i].strip().split(',')
+            weight = [weight_raw[-1]]
+            encoding = ['0','0']
+            if(weight[0] == '0'):
+                encoding[1] = '1'
+            else:
+                encoding[0] = '1'
             values = line.strip().split(',')
-            values_tmp = [values[0]] + values[2:7]
+            values_tmp = [values[0]] + values[2:7] + encoding + weight
             out_.write(','.join(values_tmp) + '\n')
+            i=i+1
 
 
 def merge_train_tube(in_train_file, in_tube_file, out_file):
@@ -281,15 +295,15 @@ def predict():
 
 if __name__ == '__main__':
     extract_train('out_train.csv')
-    print 'written out_train.csv'
+    print('written out_train.csv')
     extract_tube('out_tube.csv')
-    print 'written out_tube.csv'
+    print('written out_tube.csv')
     merge_train_tube('out_train.csv', 'out_tube.csv', 'out_train_merged.csv')
-    print 'written out_train_merged.csv'
-    merge_test_tube()
-    print 'written out_test.csv'
-    print 'training...'
+    print('written out_train_merged.csv')
+    """merge_test_tube()
+    print('written out_test.csv')
+    print('training...')
     train()
-    print 'predicting...'
+    print('predicting...')
     predict()
-    print 'done'
+    print('done')"""
