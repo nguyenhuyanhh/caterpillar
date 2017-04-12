@@ -72,7 +72,7 @@ def extract_tube(out_file):
         head = tmp[0].strip().split(',')
         head2 = total_weight[0].strip().split(',')
         head3 = ['weighted','not weighted']
-        head_tmp = [head[0]] + head[2:7] + head3 + [head2[-1]]
+        head_tmp = [head[0]] + head[2:7] + head2[1:-1] + head3 + [head2[-1]]
         out_.write(','.join(head_tmp) + '\n')
         i = 1
         for line in tmp[1:]:
@@ -84,7 +84,7 @@ def extract_tube(out_file):
             else:
                 encoding[0] = '1'
             values = line.strip().split(',')
-            values_tmp = [values[0]] + values[2:7] + encoding + weight
+            values_tmp = [values[0]] + values[2:7] + weight_raw[1:-1] + encoding + weight
             out_.write(','.join(values_tmp) + '\n')
             i=i+1
 
@@ -150,7 +150,7 @@ def merge_test_tube():
                 encoding[-1] = '1'
             if tube_id > 19490:
                 tube_id = tube_id - 1
-            tube_info = ((tmp_tube[tube_id]).strip().split(','))[2:]
+            tube_info = ((tmp_tube[tube_id]).strip().split(','))[1:]
             out_tmp = [tmp[1]] + tube_info + encoding + tmp[-4:]
             out_.write(','.join(out_tmp) + '\n')
 
@@ -179,6 +179,17 @@ def train():
     weighted = list()
     not_weighted = list()
     total_weight = list()
+    adaptor = list()
+    nut = list()
+    sleeve = list()
+    threaded = list()
+    boss = list()
+    straight = list()
+    elbow = list()
+    other = list()
+    float_ = list()
+    hfl = list()
+    tee = list()
     quantity_vect = list()
     bracket_vect = list()
     with open(os.path.join(CUR_DIR, 'out_train_merged.csv'), 'r') as merged_:
@@ -201,6 +212,17 @@ def train():
             transform = math.log10(float(values[-13]) + 1)
             # transform y to log10(1+y)
             total_weight.append(transform)
+            adaptor.append(int(values[-26]))
+            nut.append(int(values[-25]))
+            sleeve.append(int(values[-24]))
+            threaded.append(int(values[-23]))
+            boss.append(int(values[-22]))
+            straight.append(int(values[-21]))
+            elbow.append(int(values[-20]))
+            other.append(int(values[-19]))
+            float_.append(int(values[-18]))
+            hfl.append(int(values[-17]))
+            tee.append(int(values[-16]))
             s66.append(int(values[-12]))
             s41.append(int(values[-11]))
             s72.append(int(values[-10]))
@@ -215,7 +237,7 @@ def train():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, weighted, total_weight,
+    a_mat = [id_vect,diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, adaptor, nut, sleeve, threaded, boss, straight, elbow, other, float_, hfl, tee,total_weight,
              s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
@@ -256,6 +278,17 @@ def predict():
     weighted = list()
     not_weighted = list()
     total_weight = list()
+    adaptor = list()
+    nut = list()
+    sleeve = list()
+    threaded = list()
+    boss = list()
+    straight = list()
+    elbow = list()
+    other = list()
+    float_ = list()
+    hfl = list()
+    tee = list()
     min_q = list()
     usage = list()
     quantity_vect = list()
@@ -276,6 +309,17 @@ def predict():
             transform = math.log10(float(values[-12]) + 1)
             # transform y to log10(1+y)
             total_weight.append(transform)
+            adaptor.append(int(values[-25]))
+            nut.append(int(values[-24]))
+            sleeve.append(int(values[-23]))
+            threaded.append(int(values[-22]))
+            boss.append(int(values[-21]))
+            straight.append(int(values[-20]))
+            elbow.append(int(values[-19]))
+            other.append(int(values[-18]))
+            float_.append(int(values[-17]))
+            hfl.append(int(values[-16]))
+            tee.append(int(values[-15]))
             s66.append(int(values[-11]))
             s41.append(int(values[-10]))
             s72.append(int(values[-9]))
@@ -290,7 +334,7 @@ def predict():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, weighted, total_weight,
+    a_mat = [id_vect,diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, adaptor, nut, sleeve, threaded, boss, straight, elbow, other, float_, hfl, tee,total_weight,
              s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
