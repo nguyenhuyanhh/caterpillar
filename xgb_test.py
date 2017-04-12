@@ -15,7 +15,7 @@ CUR_DIR = os.path.dirname(os.path.realpath(__file__))
 DATA_DIR = os.path.join(CUR_DIR, 'competition_data')
 # inputs
 TRAIN_FILE = os.path.join(DATA_DIR, 'train_set.csv')
-TUBE_FILE = os.path.join(DATA_DIR, 'tube.csv')
+TUBE_FILE = os.path.join(DATA_DIR, 'tube_mod.csv')
 TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
 # constants
 SUPP_ENCODE = ['S-0066', 'S-0041', 'S-0072',
@@ -72,7 +72,7 @@ def extract_tube(out_file):
         head = tmp[0].strip().split(',')
         head2 = total_weight[0].strip().split(',')
         head3 = ['weighted','not weighted']
-        head_tmp = [head[0]] + head[2:7] + head2[1:-1] + head3 + [head2[-1]]
+        head_tmp = [head[0]] + head[2:13] + head2[1:-1] + head3 + [head2[-1]]
         out_.write(','.join(head_tmp) + '\n')
         i = 1
         for line in tmp[1:]:
@@ -84,7 +84,7 @@ def extract_tube(out_file):
             else:
                 encoding[0] = '1'
             values = line.strip().split(',')
-            values_tmp = [values[0]] + values[2:7] + weight_raw[1:-1] + encoding + weight
+            values_tmp = [values[0]] + values[2:13] + weight_raw[1:-1] + encoding + weight
             out_.write(','.join(values_tmp) + '\n')
             i=i+1
 
@@ -192,6 +192,12 @@ def train():
     tee = list()
     quantity_vect = list()
     bracket_vect = list()
+    t1 = list()
+    t2 = list()
+    t3 = list()
+    t4 = list()
+    t5 = list()
+    t6 = list()
     with open(os.path.join(CUR_DIR, 'out_train_merged.csv'), 'r') as merged_:
         tmp = merged_.readlines()[1:]
         for line in tmp:
@@ -212,6 +218,12 @@ def train():
             transform = math.log10(float(values[-13]) + 1)
             # transform y to log10(1+y)
             total_weight.append(transform)
+            t1.append(int(values[-32]))
+            t2.append(int(values[-31]))
+            t3.append(int(values[-30]))
+            t4.append(int(values[-29]))
+            t5.append(int(values[-28]))
+            t6.append(int(values[-27]))
             adaptor.append(int(values[-26]))
             nut.append(int(values[-25]))
             sleeve.append(int(values[-24]))
@@ -237,7 +249,7 @@ def train():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [id_vect,diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, adaptor, nut, sleeve, threaded, boss, straight, elbow, other, float_, hfl, tee,total_weight,
+    a_mat = [id_vect,diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, t1,t2,t3,t4,t5,t6,adaptor, nut, sleeve, threaded, boss, straight, elbow, other, float_, hfl, tee,total_weight,
              s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
@@ -293,6 +305,12 @@ def predict():
     usage = list()
     quantity_vect = list()
     bracket_vect = list()
+    t1 = list()
+    t2 = list()
+    t3 = list()
+    t4 = list()
+    t5 = list()
+    t6 = list()
     with open(os.path.join(CUR_DIR, 'out_test.csv'), 'r') as merged_:
         tmp = merged_.readlines()
         for line in tmp:
@@ -309,6 +327,12 @@ def predict():
             transform = math.log10(float(values[-12]) + 1)
             # transform y to log10(1+y)
             total_weight.append(transform)
+            t1.append(int(values[-31]))
+            t2.append(int(values[-30]))
+            t3.append(int(values[-29]))
+            t4.append(int(values[-28]))
+            t5.append(int(values[-27]))
+            t6.append(int(values[-26]))
             adaptor.append(int(values[-25]))
             nut.append(int(values[-24]))
             sleeve.append(int(values[-23]))
@@ -334,7 +358,7 @@ def predict():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [id_vect,diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, adaptor, nut, sleeve, threaded, boss, straight, elbow, other, float_, hfl, tee,total_weight,
+    a_mat = [id_vect,diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect, t1,t2,t3,t4,t5,t6,adaptor, nut, sleeve, threaded, boss, straight, elbow, other, float_, hfl, tee,total_weight,
              s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
