@@ -4,8 +4,8 @@ Caterpillar Tube Pricing
 Nguyen Huy Anh, Lee Vicson, Deon Seng, Oh Yoke Chew
 """
 
-import os
 import math
+import os
 
 import numpy as np
 import xgboost as xgb
@@ -17,24 +17,29 @@ DATA_DIR = os.path.join(CUR_DIR, 'competition_data')
 TRAIN_FILE = os.path.join(DATA_DIR, 'train_set.csv')
 TUBE_FILE = os.path.join(DATA_DIR, 'tube.csv')
 TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
-# CONSTANTS
+# constants
 SUPP_ENCODE = ['S-0066', 'S-0041', 'S-0072',
                'S-0054', 'S-0026', 'S-0013', 'others']
 # outputs
 OUT_FILE = os.path.join(CUR_DIR, 'out_with_one_hot_and_usage_and_min_qnt.csv')
 
 
-def extract_train():
+def extract_train(out_file):
     """
-    Modified to extract all train data
-    CSV header: tube_assembly_id,bracket,quantity,cost
+    Extract train.csv, with one-hot encoding for supplier
+
+    Arguments:
+        out_file: str - path to output file
+    CSV header:
+        tube_assembly_id,S-0066,S-0041,S-0072,S-0054,S-0026,S-0013,others,
+        annual_usage,min_order_quantity,bracket_pricing,quantity,cost
     """
     tmp = list()
     with open(TRAIN_FILE, 'r') as in_:
         tmp = in_.readlines()
-    with open('out_train.csv', 'w') as out_:
+    with open(out_file, 'w') as out_:
         head = tmp[0].strip().split(',')
-        head_tmp = [head[0]] + SUPP_ENCODE + head[-2:]
+        head_tmp = [head[0]] + SUPP_ENCODE + head[-5:]
         out_.write(','.join(head_tmp) + '\n')
         for line in tmp[1:]:
             values = line.strip().split(',')
@@ -54,7 +59,8 @@ def extract_tube(out_file):
 
     Arguments:
         out_file: str - path to output file
-    CSV header: tube_assembly_id,diameter,wall,length,num_bends,bend_radius
+    CSV header:
+        tube_assembly_id,diameter,wall,length,num_bends,bend_radius
     """
     tmp = list()
     with open(TUBE_FILE, 'r') as in_:
@@ -77,7 +83,10 @@ def merge_train_tube(in_train_file, in_tube_file, out_file):
         in_train_file: str - path to input train file
         in_tube_file: str - path to input tube file
         out_file: str - path to output file
-    CSV header: tube_assembly_id,diameter,wall,length,num_bends,bend_radius,quantity,cost
+    CSV header:
+        tube_assembly_id,diameter,wall,length,num_bends,bend_radius,
+        S-0066,S-0041,S-0072,S-0054,S-0026,S-0013,others,
+        annual_usage,min_order_quantity,bracket_pricing,quantity,cost
     """
     tmp_train = list()
     tmp_tube = list()
@@ -108,6 +117,9 @@ def merge_train_tube(in_train_file, in_tube_file, out_file):
 
 
 def merge_test_tube():
+    """
+    Merge test_set.csv and tube.csv
+    """
     with open(TEST_FILE, 'r') as in_:
         tmp_test = in_.readlines()[1:]
     with open(TUBE_FILE, 'r') as tube_:
@@ -130,6 +142,9 @@ def merge_test_tube():
 
 
 def train():
+    """
+    Build the model for prediction.
+    """
     # get coefficients
     y_vect = list()
     id_vect = list()
@@ -138,7 +153,6 @@ def train():
     length_vect = list()
     num_bends_vect = list()
     bend_radius_vect = list()
-    #SUPP_ENCODE = ['S-0066','S-0041','S-0072','S-0054','S-0026','S-0013','others']
     s66 = list()
     s41 = list()
     s72 = list()
@@ -179,8 +193,8 @@ def train():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [id_vect, diameter_vect, wall_vect, length_vect,
-             num_bends_vect, bend_radius_vect, s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
+    a_mat = [diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect,
+             s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
     dtrain = xgb.DMatrix(a_mat_big, label=y_vect)
@@ -201,13 +215,15 @@ def train():
 
 
 def predict():
+    """
+    Predict based on the model.
+    """
     id_vect = list()
     diameter_vect = list()
     wall_vect = list()
     length_vect = list()
     num_bends_vect = list()
     bend_radius_vect = list()
-    #SUPP_ENCODE = ['S-0066','S-0041','S-0072','S-0054','S-0026','S-0013','others']
     s66 = list()
     s41 = list()
     s72 = list()
@@ -244,8 +260,8 @@ def predict():
                 bracket_vect.append(1)
             else:
                 bracket_vect.append(0)
-    a_mat = [id_vect, diameter_vect, wall_vect, length_vect,
-             num_bends_vect, bend_radius_vect, s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
+    a_mat = [diameter_vect, wall_vect, length_vect, num_bends_vect, bend_radius_vect,
+             s66, s41, s72, s54, s26, s13, others, usage, min_q, quantity_vect, bracket_vect]
     a_mat_big = np.column_stack(a_mat)
 
     dtest = xgb.DMatrix(a_mat_big)
@@ -254,26 +270,26 @@ def predict():
     ypred = model.predict(dtest)
     # predict based on model
 
-    id = 1
+    id_ = 1
     with open(OUT_FILE, 'w') as out_:
         out_.write('id,cost\n')
         for pred in ypred:
             cost = math.pow(10, pred) - 1
             # transform predictions back to y with (10 ** pred) - 1
-            out_.write('{},{}\n'.format(id, cost))
-            id += 1
+            out_.write('{},{}\n'.format(id_, cost))
+            id_ += 1
 
 if __name__ == '__main__':
-    extract_train()
+    extract_train('out_train.csv')
+    print 'written out_train.csv'
     extract_tube('out_tube.csv')
+    print 'written out_tube.csv'
     merge_train_tube('out_train.csv', 'out_tube.csv', 'out_train_merged.csv')
+    print 'written out_train_merged.csv'
     merge_test_tube()
-    try:
-        train()
-        predict()
-        print('done')
-        input()
-    except Exception as e:
-        print(e.args)
-        print("Press Enter to continue ...")
-        input()
+    print 'written out_test.csv'
+    print 'training...'
+    train()
+    print 'predicting...'
+    predict()
+    print 'done'
