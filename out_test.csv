@@ -1,3 +1,4 @@
+tube_assembly_id,diameter,wall,length,num_bends,bend_radius,e0d_a_1x,e0d_a_2x,e0d_x_1x,e0d_x_2x,a_form,x_form,adaptor,nut,sleeve,threaded,boss,straight,elbow,other,float,hfl,tee,weighted,not weighted,total weight,S-0066,S-0041,S-0072,S-0054,S-0026,S-0013,others,annual_usage,min_order_quantity,bracket_pricing,quantity
 TA-00001,12.7,1.65,164,5,38.1,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,1,0,0.096,1,0,0,0,0,0,0,0,0,Yes,1
 TA-00001,12.7,1.65,164,5,38.1,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,1,0,0.096,1,0,0,0,0,0,0,0,0,Yes,2
 TA-00001,12.7,1.65,164,5,38.1,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,1,0,0.096,1,0,0,0,0,0,0,0,0,Yes,5
