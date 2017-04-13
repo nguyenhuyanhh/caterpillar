@@ -16,6 +16,7 @@ import xgboost as xgb
 # init paths
 CUR_DIR = os.path.dirname(os.path.realpath(__file__))
 DATA_DIR = os.path.join(CUR_DIR, 'competition_data')
+MODEL_DIR = os.path.join(CUR_DIR, 'model_xgboost')
 # inputs
 TRAIN_FILE = os.path.join(DATA_DIR, 'train_set.csv')
 TUBE_FILE = os.path.join(DATA_DIR, 'tube_mod.csv')
@@ -171,7 +172,7 @@ def train(features, output_model=True):
     """
     # get training matrix
     lines = list()
-    with open(os.path.join(CUR_DIR, 'out_train_merged.csv'), 'r') as merged_:
+    with open(os.path.join(MODEL_DIR, 'out_train_merged.csv'), 'r') as merged_:
         lines = merged_.readlines()
     vectors = lines[0].strip().split(',')
     no_vects = len(vectors)
@@ -207,7 +208,7 @@ def train(features, output_model=True):
     # output model
     if output_model:
         model = xgb.train(param, dtrain, num_round)
-        model.save_model(os.path.join(CUR_DIR, '0001.model'))
+        model.save_model(os.path.join(MODEL_DIR, '0001.model'))
     else:
         # using the built in cv method to check errors, it uses rmse though
         xgb.cv(param, dtrain, num_round, nfold=5, metrics={'rmse'}, seed=0, callbacks=[
@@ -224,7 +225,7 @@ def predict(features):
     """
     # get test matrix
     lines = list()
-    with open(os.path.join(CUR_DIR, 'out_test.csv'), 'r') as merged_:
+    with open(os.path.join(MODEL_DIR, 'out_test.csv'), 'r') as merged_:
         lines = merged_.readlines()
     vectors = lines[0].strip().split(',')
     no_vects = len(vectors)
@@ -253,7 +254,7 @@ def predict(features):
     # predict
     dtest = xgb.DMatrix(a_mat_big)
     model = xgb.Booster({'nthread': 4})  # init model
-    model.load_model(os.path.join(CUR_DIR, '0001.model'))  # load model
+    model.load_model(os.path.join(MODEL_DIR, '0001.model'))  # load model
     ypred = model.predict(dtest)
 
     # output
