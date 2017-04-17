@@ -23,19 +23,19 @@ TUBE_FILE = os.path.join(DATA_DIR, 'tube_mod.csv')
 TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
 # constants
 SUPP_ENCODE = ['S-0066', 'S-0041', 'S-0072',
-               'S-0054', 'S-0026', 'S-0013', 'others']
+               'S-0054', 'S-0026', 'S-0013', 'S-others']
 # outputs
 OUT_FILE = os.path.join(CUR_DIR, 'out.csv')
 
 
-def extract_train(out_file):
+def preprocess_train(out_file):
     """
-    Extract train.csv, with one-hot encoding for supplier
+    Preprocess train_set.csv, with one-hot encoding for supplier and bracket
 
     Arguments:
         out_file: str - path to output file
     CSV header:
-        tube_assembly_id,S-0066,S-0041,S-0072,S-0054,S-0026,S-0013,others,
+        tube_assembly_id,S-0066,S-0041,S-0072,S-0054,S-0026,S-0013,S-others,
         annual_usage,min_order_quantity,bracket_pricing,quantity,cost
     """
     tmp = list()
@@ -47,13 +47,54 @@ def extract_train(out_file):
         out_.write(','.join(head_tmp) + '\n')
         for line in tmp[1:]:
             values = line.strip().split(',')
+            # supplier
             encoding = ['0', '0', '0', '0', '0', '0', '0']
             if values[1] in SUPP_ENCODE:
                 index = SUPP_ENCODE.index(values[1])
                 encoding[index] = '1'
             else:
                 encoding[-1] = '1'
-            value_tmp = [values[0]] + encoding + values[-5:]
+            # bracket
+            bracket = '1'
+            if values[-3] == 'No':
+                bracket = '0'
+            value_tmp = [values[0]] + encoding + \
+                values[-5:-3] + [bracket] + values[-2:]
+            out_.write(','.join(value_tmp) + '\n')
+
+
+def preprocess_test(out_file):
+    """
+    Preprocess test_set.csv, with one-hot encoding for supplier and bracket
+
+    Arguments:
+        out_file: str - path to output file
+    CSV header:
+        tube_assembly_id,S-0066,S-0041,S-0072,S-0054,S-0026,S-0013,S-others,
+        annual_usage,min_order_quantity,bracket_pricing,quantity
+    """
+    tmp = list()
+    with open(TEST_FILE, 'r') as in_:
+        tmp = in_.readlines()
+    with open(out_file, 'w') as out_:
+        head = tmp[0].strip().split(',')
+        head_tmp = [head[1]] + SUPP_ENCODE + head[-4:]
+        out_.write(','.join(head_tmp) + '\n')
+        for line in tmp[1:]:
+            values = line.strip().split(',')
+            # supplier
+            encoding = ['0', '0', '0', '0', '0', '0', '0']
+            if values[2] in SUPP_ENCODE:
+                index = SUPP_ENCODE.index(values[2])
+                encoding[index] = '1'
+            else:
+                encoding[-1] = '1'
+            # bracket
+            bracket = '1'
+            if values[-2] == 'No':
+                bracket = '0'
+            value_tmp = [values[1]] + encoding + \
+                values[-4:-2] + [bracket] + values[-1:]
             out_.write(','.join(value_tmp) + '\n')
 
 
@@ -158,6 +199,17 @@ def merge_test_tube():
             tube_info = ((tmp_tube[tube_id]).strip().split(','))[1:]
             out_tmp = [tmp[1]] + tube_info + encoding + tmp[-4:]
             out_.write(','.join(out_tmp) + '\n')
+
+
+def preprocess():
+    """
+    Wrapper for preprocessing functions.
+    """
+    pre_train_path = os.path.join(MODEL_DIR, 'pre_train.csv')
+    pre_test_path = os.path.join(MODEL_DIR, 'pre_test.csv')
+
+    preprocess_train(pre_train_path)
+    preprocess_test(pre_test_path)
 
 
 def train(features, output_model=True):
@@ -276,6 +328,8 @@ if __name__ == '__main__':
     # print('written out_train_merged.csv')
     # merge_test_tube()
     # print('written out_test.csv')
+    print('preprocessing...')
+    preprocess()
     FEATS = ['tube_assembly_id', 'diameter', 'wall', 'length', 'num_bends',
              'bend_radius', 'e0d_a_1x', 'e0d_a_2x', 'e0d_x_1x', 'e0d_x_2x',
              'a_form', 'x_form', 'adaptor', 'nut', 'sleeve', 'threaded',
