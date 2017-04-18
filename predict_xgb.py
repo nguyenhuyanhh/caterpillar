@@ -19,7 +19,7 @@ DATA_DIR = os.path.join(CUR_DIR, 'competition_data')
 MODEL_DIR = os.path.join(CUR_DIR, 'model_xgboost')
 # inputs
 TRAIN_FILE = os.path.join(DATA_DIR, 'train_set.csv')
-TUBE_FILE = os.path.join(DATA_DIR, 'tube_mod.csv')
+TUBE_FILE = os.path.join(DATA_DIR, 'tube.csv')
 TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
 # constants
 SUPP_ENCODE = ['S-0066', 'S-0041', 'S-0072',
@@ -98,70 +98,145 @@ def preprocess_test(out_file):
             out_.write(','.join(value_tmp) + '\n')
 
 
-def extract_tube(out_file):
+def preprocess_components():
     """
-    Extract tube.csv.
+    Preprocess comp_*.csv into convenient lookup tables.
+
+    Forward lookup: component type -> component_id -> weight
+    Reverse lookup: component_id -> component type
+    """
+    files = [i for i in os.listdir(DATA_DIR) if i[:5] == 'comp_']  # comp_*
+    forward_lookup = dict()
+    reverse_lookup = dict()
+    for file_ in files:
+        key = file_[5:-4]  # adaptor, boss, etc.
+        forward_lookup[key] = dict()
+        lines = list()
+        with open(os.path.join(DATA_DIR, file_), 'r') as in_:
+            lines = in_.readlines()[1:]
+        for line in lines:
+            values = line.strip().split(',')
+            reverse_lookup[values[0]] = key
+            weight = values[-1]
+            if values[-1] == 'NA':
+                weight = '0'
+            forward_lookup[key][values[0]] = weight
+    # handle component id 9999
+    forward_lookup['other']['9999'] = '0'
+    reverse_lookup['9999'] = 'other'
+    return forward_lookup, reverse_lookup
+
+
+def preprocess_bill_of_materials(out_file):
+    """
+    Preprocess bill_of_materials.csv.
 
     Arguments:
         out_file: str - path to output file
     CSV header:
-        tube_assembly_id,diameter,wall,length,num_bends,bend_radius
+        tube_assembly_id,adaptor,boss,elbow,float,hfl,nut,other,sleeve,
+        straight,tee,threaded,total_weight
     """
+    fwd, rev = preprocess_components()
+    keys = fwd.keys() + ['total_weight']
+    tubes = dict()
     tmp = list()
-    total_weight = list()
-    with open(TUBE_FILE, 'r') as in_:
+    with open(os.path.join(DATA_DIR, 'bill_of_materials.csv'), 'r') as in_:
         tmp = in_.readlines()
-    with open('tube_total_weight.csv', 'r') as weight_:
-        total_weight = weight_.readlines()
-    with open(out_file, 'w') as out_:
-        head = tmp[0].strip().split(',')
-        head2 = total_weight[0].strip().split(',')
-        head3 = ['weighted', 'not weighted']
-        head_tmp = [head[0]] + head[2:13] + head2[1:-1] + head3 + [head2[-1]]
-        out_.write(','.join(head_tmp) + '\n')
-        i = 1
-        for line in tmp[1:]:
-            weight_raw = total_weight[i].strip().split(',')
-            weight = [weight_raw[-1]]
-            encoding = ['0', '0']
-            if weight[0] == '0':
-                encoding[1] = '1'
+    for line in tmp[1:]:
+        values = line.strip().split(',')
+        tubes[values[0]] = dict(zip(keys, [0] * len(keys)))
+        # calculate total weight and number of each type of components
+        in_ = 1
+        while in_ < len(values):
+            if values[in_] == 'NA':
+                break
             else:
-                encoding[0] = '1'
-            values = line.strip().split(',')
-            values_tmp = [values[0]] + values[2:13] + \
-                weight_raw[1:-1] + encoding + weight
-            out_.write(','.join(values_tmp) + '\n')
-            i = i + 1
+                type_ = rev[values[in_]]
+                weight = int(values[in_ + 1])
+                tubes[values[0]][type_] += weight
+                tubes[values[0]][
+                    'total_weight'] += float(fwd[type_][values[in_]]) * weight
+            in_ += 2
+    with open(out_file, 'w') as out_:
+        out_.write(','.join(tmp[0].strip().split(
+            ',')[:1] + sorted(keys)) + '\n')
+        for key in sorted(tubes.keys()):
+            tmp_ = [str(tubes[key][i]) for i in sorted(tubes[key].keys())]
+            out_.write(','.join([key] + tmp_) + '\n')
+    return out_file
 
 
-def merge_train_tube(in_train_file, in_tube_file, out_file):
+def preprocess_tube(pre_bill_of_materials, out_file):
     """
-    Merge two data sets from extract_train and extract_tube together.
+    Preprocessing tube.csv, with input from bill_of_materials.csv
 
     Arguments:
-        in_train_file: str - path to input train file
-        in_tube_file: str - path to input tube file
+        pre_bill_of_materials: str - path to preprocessed bill of materials
         out_file: str - path to output file
     CSV header:
         tube_assembly_id,diameter,wall,length,num_bends,bend_radius,
-        S-0066,S-0041,S-0072,S-0054,S-0026,S-0013,others,
-        annual_usage,min_order_quantity,bracket_pricing,quantity,cost
+        end_a_1x,end_a_2x,end_x_1x,end_x_2x,end_a,end_x,adaptor,boss,
+        elbow,float,hfl,nut,other,sleeve,straight,tee,threaded,total_weight
     """
-    tmp_train = list()
+    # encoding for end_form
+    enc_form = dict()
+    with open(os.path.join(DATA_DIR, 'tube_end_form.csv')) as in_:
+        tmp = in_.readlines()[1:]
+        for line in tmp:
+            values = line.strip().split(',')
+            if values[1] == 'Yes':
+                enc_form[values[0]] = '1'
+            else:
+                enc_form[values[0]] = '0'
+    enc_form['NONE'] = '0'  # handle NONE
+
     tmp_tube = list()
-    with open(in_train_file, 'r') as train_:
-        tmp_train = train_.readlines()
-    with open(in_tube_file, 'r') as tube_:
-        tmp_tube = tube_.readlines()
+    tmp_bill = list()
+    enc_end = {'Y': '1', 'N': '0'}
+    with open(TUBE_FILE, 'r') as in_:
+        tmp_tube = in_.readlines()
+    with open(pre_bill_of_materials, 'r') as in_:
+        tmp_bill = in_.readlines()
+    with open(out_file, 'w') as out_:
+        header = tmp_tube[0].strip().split(',')[
+            :1] + tmp_tube[0].strip().split(',')[2:-1] + tmp_bill[0].strip().split(',')[1:]
+        out_.write(','.join(header) + '\n')
+        in_ = 1
+        while in_ < len(tmp_tube):
+            v_tube = tmp_tube[in_].strip().split(',')
+            v_bill = tmp_bill[in_].strip().split(',')
+            content = v_tube[:1] + v_tube[2:7] + [enc_end[v_tube[i]] for i in range(
+                7, 11)] + [enc_form[v_tube[i]] for i in range(11, 13)] + v_tube[13:-1] + v_bill[1:]
+            out_.write(','.join(content) + '\n')
+            in_ += 1
+
+
+def merge_train_test_tube(in_train_test_file, in_tube_file, out_file):
+    """
+    Merge two data sets from preprocess_train/test and preprocess_tube together.
+
+    Arguments:
+        in_train_test_file: str - path to input train/test file
+        in_tube_file: str - path to input tube file
+        out_file: str - path to output file
+    CSV header:
+        tube_assembly_id,[tube_contents],[train/test_contents]
+    """
+    tmp_train_test = list()
+    tmp_tube = list()
+    with open(in_train_test_file, 'r') as in_:
+        tmp_train_test = in_.readlines()
+    with open(in_tube_file, 'r') as in_:
+        tmp_tube = in_.readlines()
     with open(out_file, 'w') as out_:
         head_tmp = tmp_tube[0].strip().split(
-            ',') + tmp_train[0].strip().split(',')[1:]
+            ',') + tmp_train_test[0].strip().split(',')[1:]
         out_.write(','.join(head_tmp) + '\n')
         tr_ = 1
         tu_ = 1
-        while tr_ < len(tmp_train) and tu_ < len(tmp_tube):
-            train_tmp = tmp_train[tr_].strip().split(',')
+        while tr_ < len(tmp_train_test) and tu_ < len(tmp_tube):
+            train_tmp = tmp_train_test[tr_].strip().split(',')
             tube_tmp = tmp_tube[tu_].strip().split(',')
             if train_tmp[0] < tube_tmp[0]:
                 tr_ += 1
@@ -176,55 +251,40 @@ def merge_train_tube(in_train_file, in_tube_file, out_file):
                 continue
 
 
-def merge_test_tube():
-    """
-    Merge test_set.csv and tube.csv
-    """
-    with open(TEST_FILE, 'r') as in_:
-        tmp_test = in_.readlines()[1:]
-    with open('out_tube.csv', 'r') as tube_:
-        tmp_tube = tube_.readlines()
-    with open(os.path.join(CUR_DIR, 'out_test.csv'), 'w') as out_:
-        for line in tmp_test:
-            tmp = line.strip().split(',')
-            tube_id = int(tmp[1][-5:])
-            encoding = ['0', '0', '0', '0', '0', '0', '0']
-            if tmp[2] in SUPP_ENCODE:
-                index = SUPP_ENCODE.index(tmp[2])
-                encoding[index] = '1'
-            else:
-                encoding[-1] = '1'
-            if tube_id > 19490:
-                tube_id = tube_id - 1
-            tube_info = ((tmp_tube[tube_id]).strip().split(','))[1:]
-            out_tmp = [tmp[1]] + tube_info + encoding + tmp[-4:]
-            out_.write(','.join(out_tmp) + '\n')
-
-
 def preprocess():
     """
     Wrapper for preprocessing functions.
     """
     pre_train_path = os.path.join(MODEL_DIR, 'pre_train.csv')
     pre_test_path = os.path.join(MODEL_DIR, 'pre_test.csv')
+    pre_bill_path = os.path.join(MODEL_DIR, 'pre_bill_of_materials.csv')
+    pre_tube_path = os.path.join(MODEL_DIR, 'pre_tube.csv')
+    merged_train_path = os.path.join(MODEL_DIR, 'merged_train.csv')
+    merged_test_path = os.path.join(MODEL_DIR, 'merged_test.csv')
 
     preprocess_train(pre_train_path)
     preprocess_test(pre_test_path)
+    preprocess_tube(preprocess_bill_of_materials(pre_bill_path), pre_tube_path)
+    merge_train_test_tube(pre_train_path, pre_tube_path, merged_train_path)
+    merge_train_test_tube(pre_test_path, pre_tube_path, merged_test_path)
+
+    return merged_train_path, merged_test_path
 
 
-def train(features, output_model=True):
+def train(features, train_set, output_model=True):
     """
     Build the model for prediction.
 
     Arguments:
         features: list(str) - list of features used to build the model
                 features must match a header item in csv
+        train_set: str - path to training set
         output_model: boolean - whether to output the model
                 default is True. if False, output cv score only
     """
     # get training matrix
     lines = list()
-    with open(os.path.join(MODEL_DIR, 'out_train_merged.csv'), 'r') as merged_:
+    with open(train_set, 'r') as merged_:
         lines = merged_.readlines()
     vectors = lines[0].strip().split(',')
     no_vects = len(vectors)
@@ -237,11 +297,6 @@ def train(features, output_model=True):
                 vects[i].append(int(values[i][-5:]))
             elif i == 25 or i == no_vects - 1:  # weight, cost
                 vects[i].append(math.log10(float(values[i]) + 1))
-            elif i == 35:  # bracket_pricing
-                if values[i] == 'Yes':
-                    vects[i].append(1)
-                else:
-                    vects[i].append(0)
             else:
                 vects[i].append(float(values[i]))
     a_mat = list()
@@ -267,17 +322,18 @@ def train(features, output_model=True):
             xgb.callback.print_evaluation(show_stdv=True)])
 
 
-def predict(features):
+def predict(features, test_set):
     """
     Predict based on the model.
 
     Arguments:
         features: list(str) - list of features used to build the model
                 features must match a header item in csv
+        test_set: str - path to test set
     """
     # get test matrix
     lines = list()
-    with open(os.path.join(MODEL_DIR, 'out_test.csv'), 'r') as merged_:
+    with open(test_set, 'r') as merged_:
         lines = merged_.readlines()
     vectors = lines[0].strip().split(',')
     no_vects = len(vectors)
@@ -290,11 +346,6 @@ def predict(features):
                 vects[i].append(int(values[i][-5:]))
             elif i == 25:  # weight
                 vects[i].append(math.log10(float(values[i]) + 1))
-            elif i == 35:  # bracket_pricing
-                if values[i] == 'Yes':
-                    vects[i].append(1)
-                else:
-                    vects[i].append(0)
             else:
                 vects[i].append(float(values[i]))
     a_mat = list()
@@ -320,25 +371,17 @@ def predict(features):
             id_ += 1
 
 if __name__ == '__main__':
-    # extract_train('out_train.csv')
-    # print('written out_train.csv')
-    # extract_tube('out_tube.csv')
-    # print('written out_tube.csv')
-    # merge_train_tube('out_train.csv', 'out_tube.csv', 'out_train_merged.csv')
-    # print('written out_train_merged.csv')
-    # merge_test_tube()
-    # print('written out_test.csv')
     print('preprocessing...')
-    preprocess()
+    TRAIN_SET, TEST_SET = preprocess()
     FEATS = ['tube_assembly_id', 'diameter', 'wall', 'length', 'num_bends',
-             'bend_radius', 'e0d_a_1x', 'e0d_a_2x', 'e0d_x_1x', 'e0d_x_2x',
-             'a_form', 'x_form', 'adaptor', 'nut', 'sleeve', 'threaded',
+             'bend_radius', 'end_a_1x', 'end_a_2x', 'end_x_1x', 'end_x_2x',
+             'end_a', 'end_x', 'adaptor', 'nut', 'sleeve', 'threaded',
              'boss', 'straight', 'elbow', 'other', 'float', 'hfl', 'tee',
-             'total weight', 'S-0066', 'S-0041',
-             'S-0072', 'S-0054', 'S-0026', 'S-0013', 'others', 'annual_usage',
+             'total_weight', 'S-0066', 'S-0041',
+             'S-0072', 'S-0054', 'S-0026', 'S-0013', 'S-others', 'annual_usage',
              'min_order_quantity', 'bracket_pricing', 'quantity']
     print('training...')
-    train(features=FEATS)
+    train(FEATS, TRAIN_SET)
     print('predicting...')
-    predict(features=FEATS)
+    predict(FEATS, TEST_SET)
     print('done')
