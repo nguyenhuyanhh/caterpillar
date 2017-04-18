@@ -161,7 +161,7 @@ def preprocess_bill_of_materials(out_file):
     with open(out_file, 'w') as out_:
         out_.write(','.join(tmp[0].strip().split(
             ',')[:1] + sorted(keys)) + '\n')
-        for key in sorted(tubes.keys()):
+        for key in sorted(tubes):
             tmp_ = [str(tubes[key][i]) for i in sorted(tubes[key].keys())]
             out_.write(','.join([key] + tmp_) + '\n')
     return out_file
@@ -182,8 +182,8 @@ def preprocess_tube(pre_bill_of_materials, out_file):
     # encoding for end_form
     enc_form = dict()
     with open(os.path.join(DATA_DIR, 'tube_end_form.csv')) as in_:
-        tmp = in_.readlines()[1:]
-        for line in tmp:
+        tmp_tube = in_.readlines()[1:]
+        for line in tmp_tube:
             values = line.strip().split(',')
             if values[1] == 'Yes':
                 enc_form[values[0]] = '1'
@@ -191,7 +191,7 @@ def preprocess_tube(pre_bill_of_materials, out_file):
                 enc_form[values[0]] = '0'
     enc_form['NONE'] = '0'  # handle NONE
 
-    tmp_tube = list()
+    tmp_tube = list()  # overwrite to save memory
     tmp_bill = list()
     enc_end = {'Y': '1', 'N': '0'}
     with open(TUBE_FILE, 'r') as in_:
