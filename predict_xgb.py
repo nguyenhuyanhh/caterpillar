@@ -37,7 +37,7 @@ def preprocess_train(out_file):
         out_file: str - path to output file
     CSV header:
         tube_assembly_id,S-0066,S-0041,S-0072,S-0054,S-0026,S-0013,S-others,
-        annual_usage,min_order_quantity,bracket_pricing,quantity,cost
+        year,month,date,annual_usage,min_order_quantity,bracket_pricing,quantity,cost
     """
     tmp = list()
     with open(TRAIN_FILE, 'r') as in_:
@@ -72,7 +72,7 @@ def preprocess_test(out_file):
         out_file: str - path to output file
     CSV header:
         tube_assembly_id,S-0066,S-0041,S-0072,S-0054,S-0026,S-0013,S-others,
-        annual_usage,min_order_quantity,bracket_pricing,quantity
+        year,month,date,annual_usage,min_order_quantity,bracket_pricing,quantity
     """
     tmp = list()
     with open(TEST_FILE, 'r') as in_:
@@ -168,12 +168,44 @@ def preprocess_bill_of_materials(out_file):
     return out_file
 
 
-def preprocess_tube(pre_bill_of_materials, out_file):
+def preprocess_specs(out_file):
     """
-    Preprocessing tube.csv, with input from bill_of_materials.csv
+    Preprocess specs.csv.
+
+    Arguments:
+        out_file: str - path to output file
+    CSV header:
+        tube_assembly_id, with_spec, no_spec
+    """
+    tmp = list()
+    with open(os.path.join(DATA_DIR, 'specs.csv'), 'r') as in_:
+        tmp = in_.readlines()
+    with open(out_file, 'w') as out_:
+        out_.write('tube_assembly_id,with_spec,no_spec\n')
+        for line in tmp[1:]:
+            values = line.strip().split(',')
+            tmp_ = list()
+            in_ = 0
+            while in_ + 1 < len(values):
+                if values[in_ + 1] == 'NA':
+                    break
+                else:
+                    in_ += 1
+            if in_ == 0:
+                tmp_ = [values[0], '0', str(in_)]
+            else:
+                tmp_ = [values[0], '1', str(in_)]
+            out_.write(','.join(tmp_) + '\n')
+    return out_file
+
+
+def preprocess_tube(pre_bill_of_materials, pre_specs, out_file):
+    """
+    Preprocessing tube.csv, with input from bill_of_materials.csv and specs.csv
 
     Arguments:
         pre_bill_of_materials: str - path to preprocessed bill of materials
+        pre_specs - path to preprocessed specs
         out_file: str - path to output file
     CSV header:
         tube_assembly_id,diameter,wall,length,num_bends,bend_radius,
@@ -194,21 +226,25 @@ def preprocess_tube(pre_bill_of_materials, out_file):
 
     tmp_tube = list()  # overwrite to save memory
     tmp_bill = list()
+    tmp_specs = list()
     enc_end = {'Y': '1', 'N': '0'}
     with open(TUBE_FILE, 'r') as in_:
         tmp_tube = in_.readlines()
     with open(pre_bill_of_materials, 'r') as in_:
         tmp_bill = in_.readlines()
+    with open(pre_specs, 'r') as in_:
+        tmp_specs = in_.readlines()
     with open(out_file, 'w') as out_:
-        header = tmp_tube[0].strip().split(',')[
-            :1] + tmp_tube[0].strip().split(',')[2:-1] + tmp_bill[0].strip().split(',')[1:]
+        header = tmp_tube[0].strip().split(',')[:1] + tmp_tube[0].strip().split(',')[
+            2:-1] + tmp_bill[0].strip().split(',')[1:] + tmp_specs[0].strip().split(',')[1:]
         out_.write(','.join(header) + '\n')
         in_ = 1
         while in_ < len(tmp_tube):
             v_tube = tmp_tube[in_].strip().split(',')
             v_bill = tmp_bill[in_].strip().split(',')
-            content = v_tube[:1] + v_tube[2:7] + [enc_end[v_tube[i]] for i in range(
-                7, 11)] + [enc_form[v_tube[i]] for i in range(11, 13)] + v_tube[13:-1] + v_bill[1:]
+            v_spe = tmp_specs[in_].strip().split(',')
+            content = v_tube[:1] + v_tube[2:7] + [enc_end[v_tube[i]] for i in range(7, 11)] + [
+                enc_form[v_tube[i]] for i in range(11, 13)] + v_tube[13:-1] + v_bill[1:] + v_spe[1:]
             out_.write(','.join(content) + '\n')
             in_ += 1
 
@@ -259,13 +295,15 @@ def preprocess():
     pre_train_path = os.path.join(MODEL_DIR, 'pre_train.csv')
     pre_test_path = os.path.join(MODEL_DIR, 'pre_test.csv')
     pre_bill_path = os.path.join(MODEL_DIR, 'pre_bill_of_materials.csv')
+    pre_spec_path = os.path.join(MODEL_DIR, 'pre_specs.csv')
     pre_tube_path = os.path.join(MODEL_DIR, 'pre_tube.csv')
     merged_train_path = os.path.join(MODEL_DIR, 'merged_train.csv')
     merged_test_path = os.path.join(MODEL_DIR, 'merged_test.csv')
 
     preprocess_train(pre_train_path)
     preprocess_test(pre_test_path)
-    preprocess_tube(preprocess_bill_of_materials(pre_bill_path), pre_tube_path)
+    preprocess_tube(preprocess_bill_of_materials(pre_bill_path),
+                    preprocess_specs(pre_spec_path), pre_tube_path)
     merge_train_test_tube(pre_train_path, pre_tube_path, merged_train_path)
     merge_train_test_tube(pre_test_path, pre_tube_path, merged_test_path)
 
@@ -311,7 +349,7 @@ def train(features, train_set, output_model=True):
     param = {'max_depth': 8,
              'eta': 0.3,
              'min_child_weight': 5}
-    num_round = 30
+    num_round = 50
 
     # output model
     if output_model:
@@ -376,10 +414,12 @@ if __name__ == '__main__':
     TRAIN_SET, TEST_SET = preprocess()
     FEATS = ['tube_assembly_id', 'diameter', 'wall', 'length', 'num_bends',
              'bend_radius', 'end_a_1x', 'end_a_2x', 'end_x_1x', 'end_x_2x',
-             'end_a', 'end_x', 'adaptor', 'nut', 'sleeve', 'threaded',
-             'boss', 'straight', 'elbow', 'other', 'float', 'hfl', 'tee',
-             'total_weight', 'S-0066', 'S-0041', 'S-0072', 'S-0054', 'S-0026',
-             'S-0013', 'S-others', 'year', 'month', 'date', 'annual_usage',
+             'end_a', 'end_x',
+             'adaptor', 'nut', 'sleeve', 'threaded', 'boss', 'straight',
+             'elbow', 'other', 'float', 'hfl', 'tee', 'total_weight',
+             'with_spec', 'no_spec',
+             'S-0066', 'S-0041', 'S-0072', 'S-0054', 'S-0026', 'S-0013',
+             'S-others', 'year', 'month', 'date', 'annual_usage',
              'min_order_quantity', 'bracket_pricing', 'quantity']
     print('training...')
     train(FEATS, TRAIN_SET)
