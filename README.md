@@ -32,7 +32,9 @@ For non-bracket tubes, cost coefficients are omitted.
 
 * Log transform for `cost`
 * One-hot encoding for `supplier`, `bracket_pricing`, tube end forms
-* `annual_usage`, `min_order_quantity`, quantity of components
+* `annual_usage`, `min_order_quantity`, `quote_date`
+* Calculate quantity of components and weight of tube, then log transform weight
+* Calculate quantity of specs
 
 ### Results
 
@@ -41,4 +43,6 @@ For non-bracket tubes, cost coefficients are omitted.
 | with log transform for `cost` | 0.487616
 | with `annual_usage` and `min_order_quantity` | 0.387799
 | with one-hot encoding of `supplier` | 0.320696
-| with quantity of components | 0.263805
+| with quantity of components and tube weight | 0.263805
+| with `quote_date` | 0.254569
+| with quantity of specs and some parameter tuning | 0.244840
