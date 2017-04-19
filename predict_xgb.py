@@ -24,6 +24,7 @@ TEST_FILE = os.path.join(DATA_DIR, 'test_set.csv')
 # constants
 SUPP_ENCODE = ['S-0066', 'S-0041', 'S-0072',
                'S-0054', 'S-0026', 'S-0013', 'S-others']
+DATE_ENCODE = ['year', 'month', 'date']
 # outputs
 OUT_FILE = os.path.join(CUR_DIR, 'out.csv')
 
@@ -43,23 +44,23 @@ def preprocess_train(out_file):
         tmp = in_.readlines()
     with open(out_file, 'w') as out_:
         head = tmp[0].strip().split(',')
-        head_tmp = [head[0]] + SUPP_ENCODE + head[-5:]
+        head_tmp = [head[0]] + SUPP_ENCODE + DATE_ENCODE + head[-5:]
         out_.write(','.join(head_tmp) + '\n')
         for line in tmp[1:]:
             values = line.strip().split(',')
-            # supplier
-            encoding = ['0', '0', '0', '0', '0', '0', '0']
+            # encoding for supplier
+            enc_sup = ['0', '0', '0', '0', '0', '0', '0']
             if values[1] in SUPP_ENCODE:
                 index = SUPP_ENCODE.index(values[1])
-                encoding[index] = '1'
+                enc_sup[index] = '1'
             else:
-                encoding[-1] = '1'
-            # bracket
-            bracket = '1'
-            if values[-3] == 'No':
-                bracket = '0'
-            value_tmp = [values[0]] + encoding + \
-                values[-5:-3] + [bracket] + values[-2:]
+                enc_sup[-1] = '1'
+            # encoding for date
+            enc_date = values[2].split('-')
+            # encoding for bracket
+            enc_brac = {'Yes': '1', 'No': '0'}
+            value_tmp = [values[0]] + enc_sup + enc_date + \
+                values[-5:-3] + [enc_brac[values[-3]]] + values[-2:]
             out_.write(','.join(value_tmp) + '\n')
 
 
@@ -78,23 +79,23 @@ def preprocess_test(out_file):
         tmp = in_.readlines()
     with open(out_file, 'w') as out_:
         head = tmp[0].strip().split(',')
-        head_tmp = [head[1]] + SUPP_ENCODE + head[-4:]
+        head_tmp = [head[1]] + SUPP_ENCODE + DATE_ENCODE + head[-4:]
         out_.write(','.join(head_tmp) + '\n')
         for line in tmp[1:]:
             values = line.strip().split(',')
-            # supplier
-            encoding = ['0', '0', '0', '0', '0', '0', '0']
+            # encoding for supplier
+            enc_sup = ['0', '0', '0', '0', '0', '0', '0']
             if values[2] in SUPP_ENCODE:
                 index = SUPP_ENCODE.index(values[2])
-                encoding[index] = '1'
+                enc_sup[index] = '1'
             else:
-                encoding[-1] = '1'
-            # bracket
-            bracket = '1'
-            if values[-2] == 'No':
-                bracket = '0'
-            value_tmp = [values[1]] + encoding + \
-                values[-4:-2] + [bracket] + values[-1:]
+                enc_sup[-1] = '1'
+            # encoding for date
+            enc_date = values[3].split('-')
+            # encoding for bracket
+            enc_brac = {'Yes': '1', 'No': '0'}
+            value_tmp = [values[1]] + enc_sup + enc_date + \
+                values[-4:-2] + [enc_brac[values[-2]]] + values[-1:]
             out_.write(','.join(value_tmp) + '\n')
 
 
@@ -377,8 +378,8 @@ if __name__ == '__main__':
              'bend_radius', 'end_a_1x', 'end_a_2x', 'end_x_1x', 'end_x_2x',
              'end_a', 'end_x', 'adaptor', 'nut', 'sleeve', 'threaded',
              'boss', 'straight', 'elbow', 'other', 'float', 'hfl', 'tee',
-             'total_weight', 'S-0066', 'S-0041',
-             'S-0072', 'S-0054', 'S-0026', 'S-0013', 'S-others', 'annual_usage',
+             'total_weight', 'S-0066', 'S-0041', 'S-0072', 'S-0054', 'S-0026',
+             'S-0013', 'S-others', 'year', 'month', 'date', 'annual_usage',
              'min_order_quantity', 'bracket_pricing', 'quantity']
     print('training...')
     train(FEATS, TRAIN_SET)
