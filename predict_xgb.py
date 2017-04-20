@@ -356,7 +356,7 @@ def train(features, train_set, output_model=True):
     param["scale_pos_weight"] = 0.8
     param["max_depth"] = 8
     param["max_delta_step"] = 2
-    num_round = 2000
+    num_round = 5000
 
     # output model
     if output_model:
