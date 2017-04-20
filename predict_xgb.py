@@ -9,6 +9,7 @@ from __future__ import print_function
 
 import math
 import os
+from time import time
 
 import numpy as np
 import xgboost as xgb
@@ -210,7 +211,8 @@ def preprocess_tube(pre_bill_of_materials, pre_specs, out_file):
     CSV header:
         tube_assembly_id,diameter,wall,length,num_bends,bend_radius,
         end_a_1x,end_a_2x,end_x_1x,end_x_2x,end_a,end_x,adaptor,boss,
-        elbow,float,hfl,nut,other,sleeve,straight,tee,threaded,total_weight
+        elbow,float,hfl,nut,other,sleeve,straight,tee,threaded,total_weight,
+        with_spec,no_spec
     """
     # encoding for end_form
     enc_form = dict()
@@ -346,10 +348,15 @@ def train(features, train_set, output_model=True):
 
     # xgboost parameters
     dtrain = xgb.DMatrix(a_mat_big, label=vects[len(vects) - 1])
-    param = {'max_depth': 8,
-             'eta': 0.3,
-             'min_child_weight': 5}
-    num_round = 50
+    param = {}
+    param["eta"] = 0.02
+    param["min_child_weight"] = 6
+    param["subsample"] = 0.7
+    param["colsample_bytree"] = 0.6
+    param["scale_pos_weight"] = 0.8
+    param["max_depth"] = 8
+    param["max_delta_step"] = 2
+    num_round = 2000
 
     # output model
     if output_model:
@@ -395,7 +402,7 @@ def predict(features, test_set):
 
     # predict
     dtest = xgb.DMatrix(a_mat_big)
-    model = xgb.Booster({'nthread': 4})  # init model
+    model = xgb.Booster()  # init model
     model.load_model(os.path.join(MODEL_DIR, '0001.model'))  # load model
     ypred = model.predict(dtest)
 
@@ -410,6 +417,7 @@ def predict(features, test_set):
             id_ += 1
 
 if __name__ == '__main__':
+    STR_ = time()
     print('preprocessing...')
     TRAIN_SET, TEST_SET = preprocess()
     FEATS = ['tube_assembly_id', 'diameter', 'wall', 'length', 'num_bends',
@@ -426,3 +434,5 @@ if __name__ == '__main__':
     print('predicting...')
     predict(FEATS, TEST_SET)
     print('done')
+    END_ = time()
+    print('exec time is {} seconds'.format(END_ - STR_))
