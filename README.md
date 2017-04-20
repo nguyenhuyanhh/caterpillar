@@ -45,4 +45,5 @@ For non-bracket tubes, cost coefficients are omitted.
 | with one-hot encoding of `supplier` | 0.320696
 | with quantity of components and tube weight | 0.263805
 | with `quote_date` | 0.254569
-| with quantity of specs and some parameter tuning | 0.244840
+| with quantity of specs | 0.244840
+| with parameter tuning | 0.216116
