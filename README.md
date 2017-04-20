@@ -4,7 +4,7 @@ Dis mashine learning, it kool
 
 ## Instructions
 
-Just run `$ python predict_linear.py` or `$ python predict_xgb.py`. For the latter, make sure [XGBoost](https://xgboost.readthedocs.io/en/latest/build.html) is installed.
+Run either `$ python predict_linear.py` for linear regression, or `$ python predict_xgb.py` for XGBoost (make sure [XGBoost](https://xgboost.readthedocs.io/en/latest/build.html) is installed). The latter only provide predictions; for retraining of model please run `$ python predict_xgb.py -r`.
 
 Results are in `out.csv`.
 

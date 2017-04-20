@@ -9,6 +9,7 @@ from __future__ import print_function
 
 import math
 import os
+import sys
 from time import time
 
 import numpy as np
@@ -416,11 +417,11 @@ def predict(features, test_set):
             out_.write('{},{}\n'.format(id_, cost))
             id_ += 1
 
-if __name__ == '__main__':
-    STR_ = time()
-    print('preprocessing...')
-    TRAIN_SET, TEST_SET = preprocess()
-    FEATS = ['tube_assembly_id', 'diameter', 'wall', 'length', 'num_bends',
+
+def main(retrain=False):
+    """Wrapper for everything."""
+    # specify the feature order
+    feats = ['tube_assembly_id', 'diameter', 'wall', 'length', 'num_bends',
              'bend_radius', 'end_a_1x', 'end_a_2x', 'end_x_1x', 'end_x_2x',
              'end_a', 'end_x',
              'adaptor', 'nut', 'sleeve', 'threaded', 'boss', 'straight',
@@ -429,10 +430,25 @@ if __name__ == '__main__':
              'S-0066', 'S-0041', 'S-0072', 'S-0054', 'S-0026', 'S-0013',
              'S-others', 'year', 'month', 'date', 'annual_usage',
              'min_order_quantity', 'bracket_pricing', 'quantity']
-    print('training...')
-    train(FEATS, TRAIN_SET)
+    # main
+    start_time = time()
+    print('preprocessing...')
+    train_set, test_set = preprocess()
+    if retrain:
+        print('training...')
+        train(feats, train_set)
     print('predicting...')
-    predict(FEATS, TEST_SET)
+    predict(feats, test_set)
     print('done')
-    END_ = time()
-    print('exec time is {} seconds'.format(END_ - STR_))
+    end_time = time()
+    print('exec time is {} seconds'.format(end_time - start_time))
+
+if __name__ == '__main__':
+    if len(sys.argv) > 2:
+        print('invalid arguments, exiting...')
+    elif len(sys.argv) == 1:
+        main()
+    elif sys.argv[1] in ['-r', '--retrain']:
+        main(retrain=True)
+    else:
+        print('invalid arguments, exiting...')
