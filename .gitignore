@@ -8,3 +8,6 @@ __pycache__/
 # Models for linear regression
 model_bracket*/
 model_non_bracket*/
+
+# Models for XGBoost
+model_xgboost/*.csv
